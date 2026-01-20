@@ -1,0 +1,47 @@
+name: goblafria
+description: "Sistema de Gestión Municipal - Alcaldía La Fría"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # --- FIREBASE ---
+  firebase_core: ^4.3.0
+  firebase_auth: ^6.1.3
+  google_sign_in: ^6.2.2
+
+  # --- MODO OFFLINE (ISAR) ---
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  path_provider: ^2.1.5
+  cloud_firestore: ^6.1.1
+  connectivity_plus: ^7.0.0
+  image_picker: ^1.2.1
+  geolocator: ^12.0.0
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  file_picker: ^8.1.4
+  csv: ^6.0.0
+  intl: ^0.19.0
+  excel: ^4.0.4
+  flutter_local_notifications: ^17.2.3
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # --- GENERADOR DE CÓDIGO ---
+  build_runner: ^2.4.8
+  isar_generator: ^3.1.0+1
+  
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
