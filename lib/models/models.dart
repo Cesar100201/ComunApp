@@ -19,6 +19,16 @@ enum EstatusObra { PorIniciar, EnEjecucion, Paralizada, Culminada }
 enum TipoSolicitud { Agua, Electrico, Iluminacion, Otros }
 
 // ==========================================
+// MODELOS EMBEBIDOS
+// ==========================================
+
+@embedded
+class Cargo {
+  late String nombreCargo;
+  late bool esUnico; // Si es true, solo una persona puede ocupar este cargo
+}
+
+// ==========================================
 // COLECCIONES (TABLAS)
 // ==========================================
 
@@ -68,6 +78,7 @@ class Organizacion implements Syncable {
   late String? abreviacion;
   @Enumerated(EnumType.name)
   late TipoOrganizacion tipo;
+  late List<Cargo> cargos = []; // Lista de cargos disponibles en esta organización
   bool isSynced = false;
   bool isDeleted = false;
 }

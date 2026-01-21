@@ -27,9 +27,11 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _nombreLargoController = TextEditingController();
   final _abreviacionController = TextEditingController();
+  final _cargoController = TextEditingController();
   
   TipoOrganizacion _selectedTipo = TipoOrganizacion.Politico;
   bool _tieneAbreviacion = false;
+  List<Cargo> _cargos = [];
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
         _abreviacionController.text = organizacion.abreviacion ?? '';
         _selectedTipo = organizacion.tipo;
         _tieneAbreviacion = organizacion.abreviacion != null && organizacion.abreviacion!.isNotEmpty;
+        _cargos = List<Cargo>.from(organizacion.cargos);
         _isLoading = false;
       });
     } else {
@@ -67,7 +70,88 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
   void dispose() {
     _nombreLargoController.dispose();
     _abreviacionController.dispose();
+    _cargoController.dispose();
     super.dispose();
+  }
+
+  void _agregarCargo(bool esUnico) {
+    final nombreCargo = _cargoController.text.trim();
+    if (nombreCargo.isEmpty) return;
+    
+    if (_cargos.any((c) => c.nombreCargo.toLowerCase() == nombreCargo.toLowerCase())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Este cargo ya existe"),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+    
+    setState(() {
+      _cargos.add(Cargo()
+        ..nombreCargo = nombreCargo
+        ..esUnico = esUnico);
+      _cargoController.clear();
+    });
+  }
+
+  void _eliminarCargo(int index) {
+    setState(() {
+      _cargos.removeAt(index);
+    });
+  }
+
+  Future<void> _mostrarDialogoAgregarCargo() async {
+    final nombreCargo = _cargoController.text.trim();
+    if (nombreCargo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Escriba el nombre del cargo primero"),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    final esUnico = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Tipo de Cargo"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("¿Cuántas personas pueden ocupar el cargo \"$nombreCargo\"?"),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(Icons.person, color: AppColors.warning),
+              title: const Text("Cargo Único"),
+              subtitle: const Text("Solo una persona puede ocuparlo"),
+              onTap: () => Navigator.pop(context, true),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: AppColors.warning),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: Icon(Icons.groups, color: AppColors.info),
+              title: const Text("Cargo Múltiple"),
+              subtitle: const Text("Varias personas pueden ocuparlo"),
+              onTap: () => Navigator.pop(context, false),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: AppColors.info),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (esUnico != null) {
+      _agregarCargo(esUnico);
+    }
   }
 
   Future<void> _guardarCambios() async {
@@ -84,6 +168,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
             ? _abreviacionController.text.trim()
             : null;
         organizacionActualizada.tipo = _selectedTipo;
+        organizacionActualizada.cargos = _cargos;
         
         await _repo.actualizarOrganizacion(organizacionActualizada);
         
@@ -222,6 +307,50 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
             ],
           ),
           const SizedBox(height: 16),
+          if (o.cargos.isNotEmpty)
+            _buildSection(
+              context,
+              title: "Cargos",
+              icon: Icons.work,
+              children: [
+                for (var cargo in o.cargos)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          cargo.esUnico ? Icons.person : Icons.groups,
+                          size: 18,
+                          color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            cargo.nombreCargo,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (cargo.esUnico ? AppColors.warning : AppColors.info).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            cargo.esUnico ? "Único" : "Múltiple",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          const SizedBox(height: 16),
           _buildSection(
             context,
             title: "Estado",
@@ -287,6 +416,87 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 decoration: const InputDecoration(
                   labelText: "Abreviación",
                   border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            
+            // Gestión de cargos
+            Text(
+              "Cargos",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _cargoController,
+                    decoration: const InputDecoration(
+                      labelText: "Nombre del Cargo",
+                      prefixIcon: Icon(Icons.work),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () => _mostrarDialogoAgregarCargo(),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  tooltip: "Agregar cargo",
+                ),
+              ],
+            ),
+            if (_cargos.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _cargos.asMap().entries.map((entry) {
+                  final cargo = entry.value;
+                  return Chip(
+                    avatar: Icon(
+                      cargo.esUnico ? Icons.person : Icons.groups,
+                      size: 18,
+                      color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                    ),
+                    label: Text(cargo.nombreCargo),
+                    deleteIcon: const Icon(Icons.close, size: 18),
+                    onDeleted: () => _eliminarCargo(entry.key),
+                    backgroundColor: cargo.esUnico 
+                        ? AppColors.warning.withOpacity(0.1)
+                        : AppColors.info.withOpacity(0.1),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "🟡 Único: solo una persona • 🔵 Múltiple: varias personas",
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -3,7 +3,12 @@ import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/habitante_repository.dart';
-import 'add_habitante_page.dart';
+import '../data/repositories/vinculacion_repository.dart';
+import 'edit_habitante_info_personal_page.dart';
+import 'edit_habitante_direccion_page.dart';
+import 'edit_habitante_caracterizacion_page.dart';
+import 'edit_habitante_nucleo_familiar_page.dart';
+import 'habitante_vinculaciones_page.dart';
 
 class HabitanteProfilePage extends StatefulWidget {
   final Habitante habitante;
@@ -21,7 +26,9 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
   Habitante? _habitanteCompleto;
   bool _isLoading = true;
   HabitanteRepository? _repo;
+  VinculacionRepository? _vinculacionRepo;
   bool _repoInicializado = false;
+  int _vinculacionesCount = 0;
 
   @override
   void initState() {
@@ -33,6 +40,7 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
     final isar = await DbHelper().db;
     setState(() {
       _repo = HabitanteRepository(isar);
+      _vinculacionRepo = VinculacionRepository(isar);
       _repoInicializado = true;
     });
     _cargarDatosCompletos();
@@ -51,8 +59,12 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
       await habitante.clap.load();
       await habitante.jefeDeFamilia.load();
       
+      // Contar vinculaciones
+      final vinculaciones = await _vinculacionRepo!.getVinculacionesPorHabitante(habitante.id);
+      
       setState(() {
         _habitanteCompleto = habitante;
+        _vinculacionesCount = vinculaciones.length;
         _isLoading = false;
       });
     } else {
@@ -140,21 +152,6 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
         title: const Text("Perfil del Habitante"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddHabitantePage(habitanteParaEditar: h),
-                ),
-              );
-              if (result == true) {
-                _cargarDatosCompletos();
-              }
-            },
-            tooltip: "Editar",
-          ),
-          IconButton(
             icon: const Icon(Icons.delete),
             onPressed: _eliminarHabitante,
             tooltip: "Eliminar",
@@ -175,6 +172,17 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
               context,
               title: "Información Personal",
               icon: Icons.person,
+              onEdit: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditHabitanteInfoPersonalPage(habitante: h),
+                  ),
+                );
+                if (result == true) {
+                  _cargarDatosCompletos();
+                }
+              },
               children: [
                 _buildInfoRow("Nombre Completo", h.nombreCompleto),
                 _buildInfoRow(
@@ -200,6 +208,17 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
               context,
               title: "Dirección",
               icon: Icons.home,
+              onEdit: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditHabitanteDireccionPage(habitante: h),
+                  ),
+                );
+                if (result == true) {
+                  _cargarDatosCompletos();
+                }
+              },
               children: [
                 _buildInfoRow("Dirección Completa", h.direccion),
                 if (h.consejoComunal.value != null)
@@ -218,6 +237,17 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
               context,
               title: "Caracterización Política",
               icon: Icons.how_to_vote,
+              onEdit: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditHabitanteCaracterizacionPage(habitante: h),
+                  ),
+                );
+                if (result == true) {
+                  _cargarDatosCompletos();
+                }
+              },
               children: [
                 _buildInfoRow(
                   "Estatus Político",
@@ -237,6 +267,17 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
               context,
               title: "Núcleo Familiar",
               icon: Icons.family_restroom,
+              onEdit: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditHabitanteNucleoFamiliarPage(habitante: h),
+                  ),
+                );
+                if (result == true) {
+                  _cargarDatosCompletos();
+                }
+              },
               children: [
                 if (h.jefeDeFamilia.value == null)
                   _buildInfoRow("Rol", "Jefe de Familia")
@@ -245,6 +286,34 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                     "Jefe de Familia",
                     h.jefeDeFamilia.value!.nombreCompleto,
                   ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Vinculaciones
+            _buildSection(
+              context,
+              title: "Vinculaciones",
+              icon: Icons.group_work,
+              onEdit: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HabitanteVinculacionesPage(habitante: h),
+                  ),
+                );
+                if (result == true) {
+                  _cargarDatosCompletos();
+                }
+              },
+              children: [
+                _buildInfoRow(
+                  "Organizaciones vinculadas",
+                  _vinculacionesCount == 0 
+                      ? "Sin vinculaciones" 
+                      : "$_vinculacionesCount organización${_vinculacionesCount > 1 ? 'es' : ''}",
+                  valueColor: _vinculacionesCount > 0 ? AppColors.success : AppColors.textSecondary,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -324,6 +393,7 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
     required String title,
     required IconData icon,
     required List<Widget> children,
+    VoidCallback? onEdit,
   }) {
     return Card(
       child: Padding(
@@ -342,13 +412,23 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                   child: Icon(icon, color: AppColors.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                 ),
+                if (onEdit != null)
+                  IconButton(
+                    icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
+                    onPressed: onEdit,
+                    tooltip: "Editar",
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
