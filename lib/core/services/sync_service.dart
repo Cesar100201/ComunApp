@@ -72,6 +72,11 @@ class SyncService {
       'latitud': c.latitud,
       'longitud': c.longitud,
       'comunaCodigoSitur': c.comuna.value?.codigoSitur,
+      'tipoZona': c.tipoZona.name,
+      'cargos': c.cargos.map((cargo) => {
+        'nombreCargo': cargo.nombreCargo,
+        'esUnico': cargo.esUnico,
+      }).toList(),
     },
     fromFirebaseDoc: (isar, doc) async {
       final data = doc.data() as Map<String, dynamic>?;
@@ -88,6 +93,23 @@ class SyncService {
       consejo.comunidades = List<String>.from(data['comunidades'] ?? []);
       consejo.latitud = (data['latitud'] as num?)?.toDouble() ?? 0.0;
       consejo.longitud = (data['longitud'] as num?)?.toDouble() ?? 0.0;
+      consejo.tipoZona = TipoZona.values.firstWhere(
+        (t) => t.name == (data['tipoZona'] as String? ?? 'Urbano'),
+        orElse: () => TipoZona.Urbano,
+      );
+      
+      // Cargar cargos
+      final cargosData = data['cargos'] as List<dynamic>?;
+      if (cargosData != null) {
+        consejo.cargos = cargosData.map((cargoMap) {
+          final cargo = Cargo();
+          cargo.nombreCargo = cargoMap['nombreCargo'] as String? ?? '';
+          cargo.esUnico = cargoMap['esUnico'] as bool? ?? false;
+          return cargo;
+        }).toList();
+      } else {
+        consejo.cargos = [];
+      }
       
       // Buscar comuna relacionada
       final comunaCodigoSitur = data['comunaCodigoSitur'] as String?;

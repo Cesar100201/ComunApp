@@ -12,11 +12,12 @@ enum Genero { Masculino, Femenino }
 enum EstatusPolitico { Chavista, Opositor, Neutral, OpositorSimpatizante, OpositorNacionalista }
 enum NivelVoto { Duro, Blando, Opositor }
 enum TipoOrganizacion { Politico, Institucional, Social, Cultural, Deportiva }
-enum Ambito { Parroquial, Municipal, Regional, Nacional }
+enum Ambito { Comunal, Parroquial, Municipal, Regional, Nacional }
 enum Parroquia { LaFria, BocaDeGrita, JoseAntonioPaez }
 enum TipoZona { Rural, Urbano, Mixto }
 enum EstatusObra { PorIniciar, EnEjecucion, Paralizada, Culminada }
 enum TipoSolicitud { Agua, Electrico, Iluminacion, Otros }
+enum EstatusReporte { Completo, Parcial }
 
 // ==========================================
 // MODELOS EMBEBIDOS
@@ -92,6 +93,7 @@ class Vinculacion implements Syncable {
   late bool activo;
   final persona = IsarLink<Habitante>();
   final organizacion = IsarLink<Organizacion>();
+  final consejoComunal = IsarLink<ConsejoComunal>(); // Vinculación a consejo comunal (opcional)
   bool isSynced = false;
   bool isDeleted = false;
 }
@@ -108,6 +110,7 @@ class ConsejoComunal implements Syncable {
   late TipoZona tipoZona = TipoZona.Urbano;
   late double latitud;
   late double longitud;
+  late List<Cargo> cargos = []; // Lista de cargos de la estructura organizativa del consejo
   final comuna = IsarLink<Comuna>();
   bool isSynced = false;
   bool isDeleted = false;
@@ -203,6 +206,36 @@ class Bitacora implements Syncable {
 
   // ¿Quién hizo la acción?
   final usuarioResponsable = IsarLink<Habitante>();
+  bool isSynced = false;
+  bool isDeleted = false;
+}
+
+// TABLA: REPORTES DE SOLUCIÓN
+@collection
+class Reporte implements Syncable {
+  Id id = Isar.autoIncrement;
+
+  late DateTime fechaReporte;
+  
+  @Enumerated(EnumType.name)
+  late EstatusReporte estatusReporte; // Completo o Parcial
+  
+  late int? luminariasEntregadas;
+  
+  late String descripcion; // Descripción detallada de lo que se hizo y no se hizo
+  
+  // Fotos del reporte (URLs de Firebase Storage o rutas locales)
+  late List<String> fotosUrls = [];
+  
+  // Relación con la solicitud reportada
+  final solicitud = IsarLink<Solicitud>();
+  
+  // Organizaciones vinculadas que participaron en la solución
+  final organizacionesVinculadas = IsarLinks<Organizacion>();
+  
+  // Usuario que creó el reporte
+  final creador = IsarLink<Habitante>();
+  
   bool isSynced = false;
   bool isDeleted = false;
 }

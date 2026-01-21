@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../inhabitants/presentation/habitantes_list_page.dart';
 import '../../comunas/presentation/comunas_list_page.dart';
-import '../../consejos/presentation/consejos_list_page.dart';
+import '../../consejos/presentation/consejos_comunales_list_page.dart';
 import '../../organizations/presentation/organizaciones_list_page.dart';
 import '../../claps/presentation/claps_list_page.dart';
 import '../../solicitudes/presentation/solicitudes_list_page.dart';
@@ -49,12 +49,12 @@ class LocalMenuPage extends StatelessWidget {
           _buildActionCard(
             context,
             title: "Consejos Comunales",
-            subtitle: "Ver lista de consejos comunales",
+            subtitle: "Ver y editar consejos comunales registrados",
             icon: Icons.groups_rounded,
             color: AppColors.primaryLight,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ConsejosListPage()),
+              MaterialPageRoute(builder: (_) => const ConsejosComunalesListPage()),
             ),
           ),
 

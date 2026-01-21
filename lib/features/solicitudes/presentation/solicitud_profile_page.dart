@@ -291,7 +291,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
             title: "Información General",
             icon: Icons.info,
             children: [
-              _buildInfoRow("Tipo de Solicitud", s.tipoSolicitud.toString().split('.').last),
+              _buildInfoRow("Tipo de Solicitud", _getTipoSolicitudText(s.tipoSolicitud)),
               _buildInfoRow("Descripción", s.descripcion),
               if (s.cantidadLuminarias != null)
                 _buildInfoRow("Cantidad de Luminarias", s.cantidadLuminarias.toString()),
@@ -553,7 +553,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  s.tipoSolicitud.toString().split('.').last,
+                  _getTipoSolicitudText(s.tipoSolicitud),
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -586,6 +586,19 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
         return Icons.lightbulb_rounded;
       case TipoSolicitud.Otros:
         return Icons.category_rounded;
+    }
+  }
+
+  String _getTipoSolicitudText(TipoSolicitud tipo) {
+    switch (tipo) {
+      case TipoSolicitud.Agua:
+        return "Agua";
+      case TipoSolicitud.Electrico:
+        return "Eléctrico";
+      case TipoSolicitud.Iluminacion:
+        return "Plan García de Hevia Iluminada 2026";
+      case TipoSolicitud.Otros:
+        return "Otros";
     }
   }
 

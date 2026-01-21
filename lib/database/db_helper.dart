@@ -60,6 +60,7 @@ class DbHelper {
             ClapSchema,
             SolicitudSchema,
             BitacoraSchema,
+            ReporteSchema,
           ],
           directory: dir.path,
           inspector: true,

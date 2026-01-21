@@ -136,7 +136,7 @@ class _SolicitudesListPageState extends State<SolicitudesListPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Tipo: ${s.tipoSolicitud.toString().split('.').last}",
+                "Tipo: ${_getTipoSolicitudText(s.tipoSolicitud)}",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -219,6 +219,19 @@ class _SolicitudesListPageState extends State<SolicitudesListPage> {
         return Icons.lightbulb_rounded;
       case TipoSolicitud.Otros:
         return Icons.category_rounded;
+    }
+  }
+
+  String _getTipoSolicitudText(TipoSolicitud tipo) {
+    switch (tipo) {
+      case TipoSolicitud.Agua:
+        return "Agua";
+      case TipoSolicitud.Electrico:
+        return "Eléctrico";
+      case TipoSolicitud.Iluminacion:
+        return "Plan García de Hevia Iluminada 2026";
+      case TipoSolicitud.Otros:
+        return "Otros";
     }
   }
 }

@@ -7,6 +7,7 @@ import '../../consejos/presentation/add_consejo_page.dart';
 import '../../organizations/presentation/add_organizacion_page.dart';
 import '../../claps/presentation/add_clap_page.dart';
 import '../../solicitudes/presentation/add_solicitud_page.dart';
+import '../../reportes/presentation/reportes_main_page.dart';
 import '../../../../core/services/sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/constants.dart' show QuotaExceededException;
@@ -224,7 +225,24 @@ class HomePage extends StatelessWidget {
             },
           ),
 
-          // MÓDULO 8: SINCRONIZACIÓN
+          // MÓDULO 8: REPORTES
+          _buildModuleCard(
+            context,
+            title: "Módulo de Reportes",
+            description: "Reportar soluciones y consultar estadísticas municipales.",
+            icon: Icons.assignment_turned_in_rounded,
+            color: AppColors.success,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ReportesMainPage(),
+                ),
+              );
+            },
+          ),
+
+          // MÓDULO 9: SINCRONIZACIÓN
           _buildModuleCard(
             context,
             title: "Centro de Sincronización",

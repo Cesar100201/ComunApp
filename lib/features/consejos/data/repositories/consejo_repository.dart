@@ -15,11 +15,15 @@ class ConsejoRepository {
     });
   }
 
-  Future<List<ConsejoComunal>> getAllConsejosComunales() async {
+  Future<List<ConsejoComunal>> getAllConsejos() async {
     return await _isar.consejoComunals
         .filter()
         .isDeletedEqualTo(false)
         .findAll();
+  }
+
+  Future<List<ConsejoComunal>> getAllConsejosComunales() async {
+    return await getAllConsejos();
   }
 
   /// Búsqueda por nombre, código SITUR, comuna o parroquia.

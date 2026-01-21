@@ -2,27 +2,28 @@ import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
-import '../data/repositories/organizacion_repository.dart';
-import 'edit_organizacion_info_general_page.dart';
-import 'edit_organizacion_estructura_page.dart';
-import 'edit_organizacion_vinculaciones_page.dart';
+import '../data/repositories/consejo_repository.dart';
+import 'edit_consejo_info_basica_page.dart';
+import 'edit_consejo_ubicacion_page.dart';
+import 'edit_consejo_organizacion_page.dart';
+import 'edit_consejo_vinculaciones_page.dart';
 
-class OrganizacionProfilePage extends StatefulWidget {
-  final Organizacion organizacion;
+class ConsejoComunalProfilePage extends StatefulWidget {
+  final ConsejoComunal consejo;
 
-  const OrganizacionProfilePage({
+  const ConsejoComunalProfilePage({
     super.key,
-    required this.organizacion,
+    required this.consejo,
   });
 
   @override
-  State<OrganizacionProfilePage> createState() => _OrganizacionProfilePageState();
+  State<ConsejoComunalProfilePage> createState() => _ConsejoComunalProfilePageState();
 }
 
-class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
-  Organizacion? _organizacionCompleto;
+class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
+  ConsejoComunal? _consejoCompleto;
   bool _isLoading = true;
-  OrganizacionRepository? _repo;
+  ConsejoRepository? _repo;
   bool _repoInicializado = false;
 
   @override
@@ -32,8 +33,9 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
   }
 
   Future<void> _inicializarRepositorio() async {
+    final isar = await DbHelper().db;
     setState(() {
-      _repo = OrganizacionRepository();
+      _repo = ConsejoRepository(isar);
       _repoInicializado = true;
     });
     _cargarDatosCompletos();
@@ -42,30 +44,32 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
   Future<void> _cargarDatosCompletos() async {
     if (!_repoInicializado || _repo == null) {
       await _inicializarRepositorio();
-      return;
     }
     final isar = await DbHelper().db;
-    final organizacion = await isar.organizacions.get(widget.organizacion.id);
+    final consejo = await isar.consejoComunals.get(widget.consejo.id);
     
-    if (organizacion != null) {
+    if (consejo != null) {
+      // Cargar relaciones
+      await consejo.comuna.load();
+      
       setState(() {
-        _organizacionCompleto = organizacion;
+        _consejoCompleto = consejo;
         _isLoading = false;
       });
     } else {
       setState(() {
-        _organizacionCompleto = widget.organizacion;
+        _consejoCompleto = widget.consejo;
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _eliminarOrganizacion() async {
+  Future<void> _eliminarConsejo() async {
     final confirmacion = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirmar Eliminación"),
-        content: const Text("¿Está seguro de que desea eliminar esta organización?"),
+        content: const Text("¿Está seguro de que desea eliminar este Consejo Comunal?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -85,12 +89,12 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
         if (!_repoInicializado || _repo == null) {
           await _inicializarRepositorio();
         }
-        await _repo!.eliminarOrganizacion(widget.organizacion.id);
+        await _repo!.eliminarConsejo(widget.consejo.id);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text("✅ Organización eliminada"),
+              content: const Text("✅ Consejo Comunal eliminado"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -113,20 +117,20 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Perfil de la Organización")),
+        appBar: AppBar(title: const Text("Perfil del Consejo Comunal")),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    final o = _organizacionCompleto ?? widget.organizacion;
+    final c = _consejoCompleto ?? widget.consejo;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Perfil de la Organización"),
+        title: const Text("Perfil del Consejo Comunal"),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: _eliminarOrganizacion,
+            onPressed: _eliminarConsejo,
             tooltip: "Eliminar",
           ),
         ],
@@ -136,20 +140,20 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            _buildHeader(o),
+            // Header con foto/avatar
+            _buildHeader(c),
             const SizedBox(height: 24),
 
-            // Información General
+            // Información Básica
             _buildSection(
               context,
-              title: "Información General",
+              title: "Información Básica",
               icon: Icons.info,
               onEdit: () async {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditOrganizacionInfoGeneralPage(organizacion: o),
+                    builder: (context) => EditConsejoInfoBasicaPage(consejo: c),
                   ),
                 );
                 if (result == true) {
@@ -157,10 +161,62 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 }
               },
               children: [
-                _buildInfoRow("Nombre Completo", o.nombreLargo),
-                if (o.abreviacion != null && o.abreviacion!.isNotEmpty)
-                  _buildInfoRow("Abreviación", o.abreviacion!),
-                _buildInfoRow("Tipo", o.tipo.toString().split('.').last),
+                _buildInfoRow("Código SITUR", c.codigoSitur),
+                if (c.rif != null && c.rif!.isNotEmpty)
+                  _buildInfoRow("RIF", c.rif!),
+                _buildInfoRow("Nombre del Consejo", c.nombreConsejo),
+                _buildInfoRow(
+                  "Tipo de Zona",
+                  c.tipoZona.toString().split('.').last,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Ubicación
+            _buildSection(
+              context,
+              title: "Ubicación",
+              icon: Icons.location_on,
+              onEdit: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditConsejoUbicacionPage(consejo: c),
+                  ),
+                );
+                if (result == true) {
+                  _cargarDatosCompletos();
+                }
+              },
+              children: [
+                if (c.comuna.value != null)
+                  _buildInfoRow("Comuna", c.comuna.value!.nombreComuna),
+                _buildInfoRow(
+                  "Coordenadas",
+                  "Lat: ${c.latitud.toStringAsFixed(6)}, Lng: ${c.longitud.toStringAsFixed(6)}",
+                ),
+                if (c.comunidades.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    "Comunidades:",
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: c.comunidades.map((comunidad) {
+                      return Chip(
+                        label: Text(comunidad),
+                        backgroundColor: AppColors.primaryUltraLight,
+                      );
+                    }).toList(),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -174,7 +230,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditOrganizacionEstructuraPage(organizacion: o),
+                    builder: (context) => EditConsejoOrganizacionPage(consejo: c),
                   ),
                 );
                 if (result == true) {
@@ -182,7 +238,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 }
               },
               children: [
-                if (o.cargos.isEmpty)
+                if (c.cargos.isEmpty)
                   _buildInfoRow(
                     "Cargos",
                     "Sin cargos definidos",
@@ -193,14 +249,14 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Cargos (${o.cargos.length}):",
+                        "Cargos (${c.cargos.length}):",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w500,
                             ),
                       ),
                       const SizedBox(height: 12),
-                      ...o.cargos.map((cargo) {
+                      ...c.cargos.map((cargo) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
@@ -251,7 +307,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditOrganizacionVinculacionesPage(organizacion: o),
+                    builder: (context) => EditConsejoVinculacionesPage(consejo: c),
                   ),
                 );
                 if (result == true) {
@@ -276,8 +332,8 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
               children: [
                 _buildInfoRow(
                   "Sincronización",
-                  o.isSynced ? "Sincronizado" : "Pendiente",
-                  valueColor: o.isSynced ? AppColors.success : AppColors.warning,
+                  c.isSynced ? "Sincronizado" : "Pendiente",
+                  valueColor: c.isSynced ? AppColors.success : AppColors.warning,
                 ),
               ],
             ),
@@ -287,7 +343,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
     );
   }
 
-  Widget _buildHeader(Organizacion o) {
+  Widget _buildHeader(ConsejoComunal c) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -301,7 +357,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
             radius: 40,
             backgroundColor: Colors.white.withValues(alpha: 0.3),
             child: const Icon(
-              Icons.business,
+              Icons.groups,
               size: 40,
               color: Colors.white,
             ),
@@ -312,23 +368,21 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  o.nombreLargo,
+                  c.nombreConsejo,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                if (o.abreviacion != null && o.abreviacion!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    o.abreviacion!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  "Código SITUR: ${c.codigoSitur}",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
-                ],
+                ),
               ],
             ),
           ),
