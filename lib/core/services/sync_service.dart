@@ -587,7 +587,8 @@ class SyncService {
             'tipoSolicitud': s.tipoSolicitud.name,
             'otrosTipoSolicitud': s.otrosTipoSolicitud,
             'descripcion': s.descripcion,
-            'cantidadLuminarias': s.cantidadLuminarias,
+            'cantidadLamparas': s.cantidadLamparas,
+            'cantidadBombillos': s.cantidadBombillos,
             'ultimaActualizacion': FieldValue.serverTimestamp(),
           };
 
@@ -677,7 +678,8 @@ class SyncService {
             solicitud.idSolicitud = idSolicitud;
             solicitud.comunidad = data['comunidad'] as String? ?? '';
             solicitud.descripcion = data['descripcion'] as String? ?? '';
-            solicitud.cantidadLuminarias = (data['cantidadLuminarias'] as num?)?.toInt();
+            solicitud.cantidadLamparas = (data['cantidadLamparas'] as num?)?.toInt();
+            solicitud.cantidadBombillos = (data['cantidadBombillos'] as num?)?.toInt();
             solicitud.otrosTipoSolicitud = data['otrosTipoSolicitud'] as String?;
             solicitud.tipoSolicitud = TipoSolicitud.values.firstWhere(
               (t) => t.name == (data['tipoSolicitud'] as String? ?? 'Otros'),

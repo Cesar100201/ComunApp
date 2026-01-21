@@ -148,9 +148,9 @@ class _SolicitudesListPageState extends State<SolicitudesListPage> {
                         color: AppColors.textSecondary,
                       ),
                 ),
-              if (s.cantidadLuminarias != null)
+              if (s.cantidadLamparas != null || s.cantidadBombillos != null)
                 Text(
-                  "Luminarias: ${s.cantidadLuminarias}",
+                  "Luminarias: ${(s.cantidadLamparas ?? 0) + (s.cantidadBombillos ?? 0)}${s.cantidadLamparas != null && s.cantidadBombillos != null ? ' (${s.cantidadLamparas} lámparas, ${s.cantidadBombillos} bombillos)' : ''}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),

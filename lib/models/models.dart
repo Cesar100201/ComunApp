@@ -187,7 +187,8 @@ class Solicitud implements Syncable {
   late TipoSolicitud tipoSolicitud;
   late String? otrosTipoSolicitud;
   late String descripcion;
-  late int? cantidadLuminarias;
+  int? cantidadLamparas;
+  int? cantidadBombillos;
 
   late bool isSynced = false;
   bool isDeleted = false;

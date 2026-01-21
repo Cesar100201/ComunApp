@@ -34,7 +34,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
   final _comunidadController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _cedulaCreadorController = TextEditingController();
-  final _cantidadLuminariasController = TextEditingController();
+  final _cantidadLamparasController = TextEditingController();
+  final _cantidadBombillosController = TextEditingController();
   
   Comuna? _selectedComuna;
   ConsejoComunal? _selectedConsejoComunal;
@@ -58,8 +59,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
     _comunaRepo = ComunaRepository(isar);
     _organizacionRepo = OrganizacionRepository();
     _habitanteRepo = HabitanteRepository(isar);
-    await _cargarDatosCompletos();
     await _loadInitialData();
+    await _cargarDatosCompletos();
   }
 
   Future<void> _loadInitialData() async {
@@ -75,8 +76,15 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
       _consejosComunales = [];
     });
     if (newComuna != null) {
-      _consejosComunales = await _comunaRepo.getConsejosComunalesByComunaId(newComuna.id);
-      setState(() {});
+      final consejos = await _comunaRepo.getConsejosComunalesByComunaId(newComuna.id);
+      // Eliminar duplicados por ID
+      final consejosUnicos = <int, ConsejoComunal>{};
+      for (var consejo in consejos) {
+        consejosUnicos[consejo.id] = consejo;
+      }
+      setState(() {
+        _consejosComunales = consejosUnicos.values.toList();
+      });
     }
   }
 
@@ -90,20 +98,67 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
       await solicitud.ubch.load();
       await solicitud.creador.load();
       
+      // Cargar listas primero
+      _comunas = await _comunaRepo.getAllComunas();
+      _ubchs = await _organizacionRepo.getOrganizacionesByType(TipoOrganizacion.Politico);
+      
+      // Buscar la comuna en la lista por ID para evitar problemas de referencia
+      Comuna? comunaSeleccionada;
+      if (solicitud.comuna.value != null) {
+        final comunaCargada = solicitud.comuna.value!;
+        comunaSeleccionada = _comunas.firstWhere(
+          (c) => c.id == comunaCargada.id,
+          orElse: () => comunaCargada,
+        );
+        // Cargar consejos comunales de la comuna seleccionada
+        final consejos = await _comunaRepo.getConsejosComunalesByComunaId(comunaSeleccionada.id);
+        // Eliminar duplicados por ID
+        final consejosUnicos = <int, ConsejoComunal>{};
+        for (var consejo in consejos) {
+          consejosUnicos[consejo.id] = consejo;
+        }
+        _consejosComunales = consejosUnicos.values.toList();
+      }
+      
+      // Buscar el consejo comunal en la lista por ID
+      ConsejoComunal? consejoSeleccionado;
+      if (solicitud.consejoComunal.value != null && _consejosComunales.isNotEmpty) {
+        try {
+          consejoSeleccionado = _consejosComunales.firstWhere(
+            (c) => c.id == solicitud.consejoComunal.value!.id,
+          );
+        } catch (e) {
+          // Si no se encuentra en la lista, dejar como null
+          consejoSeleccionado = null;
+        }
+      }
+      
+      // Buscar la UBCH en la lista por ID
+      Organizacion? ubchSeleccionada;
+      if (solicitud.ubch.value != null) {
+        ubchSeleccionada = _ubchs.firstWhere(
+          (u) => u.id == solicitud.ubch.value!.id,
+          orElse: () => solicitud.ubch.value!,
+        );
+      }
+      
       setState(() {
         _solicitudCompleto = solicitud;
         _comunidadController.text = solicitud.comunidad;
         _descripcionController.text = solicitud.descripcion;
         _selectedTipoSolicitud = solicitud.tipoSolicitud;
-        _selectedComuna = solicitud.comuna.value;
-        _selectedConsejoComunal = solicitud.consejoComunal.value;
-        _selectedUbch = solicitud.ubch.value;
+        _selectedComuna = comunaSeleccionada;
+        _selectedConsejoComunal = consejoSeleccionado;
+        _selectedUbch = ubchSeleccionada;
         _selectedCreador = solicitud.creador.value;
         if (_selectedCreador != null) {
           _cedulaCreadorController.text = _selectedCreador!.cedula.toString();
         }
-        if (solicitud.cantidadLuminarias != null) {
-          _cantidadLuminariasController.text = solicitud.cantidadLuminarias.toString();
+        if (solicitud.cantidadLamparas != null) {
+          _cantidadLamparasController.text = solicitud.cantidadLamparas.toString();
+        }
+        if (solicitud.cantidadBombillos != null) {
+          _cantidadBombillosController.text = solicitud.cantidadBombillos.toString();
         }
         _isLoading = false;
       });
@@ -125,7 +180,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
     _comunidadController.dispose();
     _descripcionController.dispose();
     _cedulaCreadorController.dispose();
-    _cantidadLuminariasController.dispose();
+    _cantidadLamparasController.dispose();
+    _cantidadBombillosController.dispose();
     super.dispose();
   }
 
@@ -156,9 +212,11 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
         solicitudActualizada.descripcion = _descripcionController.text.trim();
         
         if (_selectedTipoSolicitud == TipoSolicitud.Iluminacion) {
-          solicitudActualizada.cantidadLuminarias = int.tryParse(_cantidadLuminariasController.text.trim());
+          solicitudActualizada.cantidadLamparas = int.tryParse(_cantidadLamparasController.text.trim());
+          solicitudActualizada.cantidadBombillos = int.tryParse(_cantidadBombillosController.text.trim());
         } else {
-          solicitudActualizada.cantidadLuminarias = null;
+          solicitudActualizada.cantidadLamparas = null;
+          solicitudActualizada.cantidadBombillos = null;
         }
         
         await _solicitudRepo.actualizarSolicitud(solicitudActualizada);
@@ -293,8 +351,14 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
             children: [
               _buildInfoRow("Tipo de Solicitud", _getTipoSolicitudText(s.tipoSolicitud)),
               _buildInfoRow("Descripción", s.descripcion),
-              if (s.cantidadLuminarias != null)
-                _buildInfoRow("Cantidad de Luminarias", s.cantidadLuminarias.toString()),
+              if (s.cantidadLamparas != null || s.cantidadBombillos != null) ...[
+                if (s.cantidadLamparas != null)
+                  _buildInfoRow("Cantidad de Lámparas", s.cantidadLamparas.toString()),
+                if (s.cantidadBombillos != null)
+                  _buildInfoRow("Cantidad de Bombillos", s.cantidadBombillos.toString()),
+                if (s.cantidadLamparas != null || s.cantidadBombillos != null)
+                  _buildInfoRow("Total de Luminarias", ((s.cantidadLamparas ?? 0) + (s.cantidadBombillos ?? 0)).toString()),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -396,7 +460,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<ConsejoComunal>(
-              value: _selectedConsejoComunal,
+              value: _getConsejoComunalFromList(_selectedConsejoComunal),
               decoration: const InputDecoration(
                 labelText: "Consejo Comunal",
                 border: OutlineInputBorder(),
@@ -486,13 +550,30 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
               ),
             const SizedBox(height: 16),
             if (_selectedTipoSolicitud == TipoSolicitud.Iluminacion)
-              TextFormField(
-                controller: _cantidadLuminariasController,
-                decoration: const InputDecoration(
-                  labelText: "Cantidad de Luminarias",
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cantidadLamparasController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Cantidad de Lámparas",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cantidadBombillosController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Cantidad de Bombillos",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             const SizedBox(height: 16),
             TextFormField(
@@ -670,5 +751,17 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
         ],
       ),
     );
+  }
+
+  /// Busca el consejo comunal en la lista y devuelve la instancia exacta de la lista
+  ConsejoComunal? _getConsejoComunalFromList(ConsejoComunal? consejo) {
+    if (consejo == null || _consejosComunales.isEmpty) return null;
+    try {
+      return _consejosComunales.firstWhere(
+        (c) => c.id == consejo.id,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 }

@@ -215,7 +215,7 @@ class _ReportesListPageState extends State<ReportesListPage> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (s.cantidadLuminarias != null) ...[
+                    if (s.cantidadLamparas != null || s.cantidadBombillos != null) ...[
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -226,7 +226,7 @@ class _ReportesListPageState extends State<ReportesListPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            "Luminarias solicitadas: ${s.cantidadLuminarias}",
+                            "Luminarias solicitadas: ${(s.cantidadLamparas ?? 0) + (s.cantidadBombillos ?? 0)}",
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppColors.textSecondary,
                                   fontWeight: FontWeight.w500,

@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../inhabitants/presentation/habitantes_menu_page.dart';
 import '../../local/presentation/local_menu_page.dart';
-import '../../comunas/presentation/add_comuna_page.dart';
-import '../../consejos/presentation/add_consejo_page.dart';
-import '../../organizations/presentation/add_organizacion_page.dart';
-import '../../claps/presentation/add_clap_page.dart';
-import '../../solicitudes/presentation/add_solicitud_page.dart';
+import '../../registros/presentation/registros_menu_page.dart';
+import '../../solicitudes/presentation/solicitudes_menu_page.dart';
 import '../../reportes/presentation/reportes_main_page.dart';
 import '../../../../core/services/sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -123,95 +119,27 @@ class HomePage extends StatelessWidget {
             },
           ),
 
-          // MÓDULO 2: HABITANTES (Abre el sub-menú)
+          // MÓDULO 2: REGISTROS
           _buildModuleCard(
             context,
-            title: "Gestión de Habitantes",
-            description: "Registro y búsqueda de ciudadanos.",
-            icon: Icons.groups_rounded,
-            color: AppColors.primaryLight,
+            title: "Registros",
+            description: "Gestionar habitantes, comunas, consejos comunales, organizaciones y CLAPs.",
+            icon: Icons.app_registration_rounded,
+            color: AppColors.primary,
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const HabitantesMenuPage(),
+                  builder: (context) => const RegistrosMenuPage(),
                 ),
               );
             },
           ),
 
-          // MÓDULO 3: COMUNAS
+          // MÓDULO 3: GESTIÓN DE SOLICITUDES
           _buildModuleCard(
             context,
-            title: "Gestión de Comunas",
-            description: "Registrar y administrar comunas.",
-            icon: Icons.location_city_rounded,
-            color: AppColors.info,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddComunaPage(),
-                ),
-              );
-            },
-          ),
-
-          // MÓDULO 4: CONSEJOS COMUNALES
-          _buildModuleCard(
-            context,
-            title: "Gestión de Consejos Comunales",
-            description: "Registrar consejos comunales y comunidades.",
-            icon: Icons.groups_rounded,
-            color: AppColors.primaryLight,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddConsejoPage(),
-                ),
-              );
-            },
-          ),
-
-          // MÓDULO 5: ORGANIZACIONES
-          _buildModuleCard(
-            context,
-            title: "Gestión de Organizaciones",
-            description: "Registrar organizaciones políticas y sociales.",
-            icon: Icons.business_rounded,
-            color: AppColors.warning,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddOrganizacionPage(),
-                ),
-              );
-            },
-          ),
-
-          // MÓDULO 6: CLAPS
-          _buildModuleCard(
-            context,
-            title: "Gestión de CLAPs",
-            description: "Registrar Comités Locales de Abastecimiento.",
-            icon: Icons.store_rounded,
-            color: AppColors.success,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddClapPage(),
-                ),
-              );
-            },
-          ),
-
-          // MÓDULO 7: PLAN GARCÍA DE HEVIA ILUMINADA 2026
-          _buildModuleCard(
-            context,
-            title: "Plan García de Hevia Iluminada 2026",
+            title: "Gestión de Solicitudes",
             description: "Registrar y administrar solicitudes de luminarias.",
             icon: Icons.lightbulb_outline_rounded,
             color: AppColors.info,
@@ -219,13 +147,13 @@ class HomePage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AddSolicitudPage(),
+                  builder: (context) => const SolicitudesMenuPage(),
                 ),
               );
             },
           ),
 
-          // MÓDULO 8: REPORTES
+          // MÓDULO 4: REPORTES
           _buildModuleCard(
             context,
             title: "Módulo de Reportes",
@@ -242,7 +170,7 @@ class HomePage extends StatelessWidget {
             },
           ),
 
-          // MÓDULO 9: SINCRONIZACIÓN
+          // MÓDULO 5: SINCRONIZACIÓN
           _buildModuleCard(
             context,
             title: "Centro de Sincronización",

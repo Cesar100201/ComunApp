@@ -84,9 +84,9 @@ class _ReportesSolicitudDetailPageState
                 _buildInfoRow("Tipo de Solicitud",
                     _getTipoSolicitudText(s.tipoSolicitud)),
                 _buildInfoRow("Descripción", s.descripcion),
-                if (s.cantidadLuminarias != null)
+                if (s.cantidadLamparas != null || s.cantidadBombillos != null)
                   _buildInfoRow("Cantidad de Luminarias",
-                      s.cantidadLuminarias.toString()),
+                      ((s.cantidadLamparas ?? 0) + (s.cantidadBombillos ?? 0)).toString()),
               ],
             ),
             const SizedBox(height: 16),

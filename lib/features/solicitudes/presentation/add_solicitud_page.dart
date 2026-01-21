@@ -24,7 +24,8 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
   final _comunidadController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _cedulaCreadorController = TextEditingController();
-  final _cantidadLuminariasController = TextEditingController();
+  final _cantidadLamparasController = TextEditingController();
+  final _cantidadBombillosController = TextEditingController();
 
   Comuna? _selectedComuna;
   ConsejoComunal? _selectedConsejoComunal;
@@ -99,7 +100,19 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
         ..descripcion = _descripcionController.text.trim();
 
       if (_selectedTipoSolicitud == TipoSolicitud.Iluminacion) {
-        solicitud.cantidadLuminarias = int.tryParse(_cantidadLuminariasController.text.trim());
+        // Parsear valores de los campos de texto y guardarlos por separado
+        final lamparasText = _cantidadLamparasController.text.trim();
+        final bombillosText = _cantidadBombillosController.text.trim();
+        
+        // Guardar lámparas y bombillos por separado en la base de datos
+        // Si el campo está vacío, se guarda como null
+        // Si tiene texto pero no es un número válido, se guarda como null (no como 0)
+        solicitud.cantidadLamparas = lamparasText.isEmpty 
+            ? null 
+            : int.tryParse(lamparasText);
+        solicitud.cantidadBombillos = bombillosText.isEmpty 
+            ? null 
+            : int.tryParse(bombillosText);
       }
 
       await _solicitudRepo.guardarSolicitud(solicitud);
@@ -131,7 +144,8 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
     _comunidadController.dispose();
     _descripcionController.dispose();
     _cedulaCreadorController.dispose();
-    _cantidadLuminariasController.dispose();
+    _cantidadLamparasController.dispose();
+    _cantidadBombillosController.dispose();
     super.dispose();
   }
 
@@ -239,13 +253,21 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
                   ),
                 ),
               const SizedBox(height: 16),
-              // Campo condicional para "Cantidad de Luminarias"
-              if (_selectedTipoSolicitud == TipoSolicitud.Iluminacion)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: _buildInput("Cantidad de Luminarias", Icons.lightbulb, _cantidadLuminariasController, keyboardType: TextInputType.number),
+              // Campos condicionales para "Cantidad de Luminarias"
+              if (_selectedTipoSolicitud == TipoSolicitud.Iluminacion) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInput("Cantidad de Lámparas", Icons.lightbulb, _cantidadLamparasController, keyboardType: TextInputType.number, required: false),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildInput("Cantidad de Bombillos", Icons.lightbulb_outline, _cantidadBombillosController, keyboardType: TextInputType.number, required: false),
+                    ),
+                  ],
                 ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
               _buildInput("Descripción", Icons.description, _descripcionController, maxLines: 3),
               const SizedBox(height: 32),
               SizedBox(
