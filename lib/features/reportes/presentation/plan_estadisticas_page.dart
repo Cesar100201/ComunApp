@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:goblafria/core/theme/app_theme.dart';
@@ -172,470 +170,729 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     return estadisticasPorComuna;
   }
 
-  Future<Uint8List?> _capturarGraficoComoImagen() async {
-    try {
-      // Esperar varios frames para asegurar que el widget está completamente renderizado
-      await Future.delayed(const Duration(milliseconds: 300));
-      
-      // Forzar un rebuild para asegurar que el gráfico esté visible
-      if (mounted) {
-        setState(() {});
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-      
-      final BuildContext? context = _chartKey.currentContext;
-      if (context == null) {
-        debugPrint('Error: No se encontró el contexto del gráfico');
-        return null;
-      }
-      
-      final RenderObject? renderObject = context.findRenderObject();
-      if (renderObject == null || !renderObject.attached) {
-        debugPrint('Error: El render object no está disponible o no está attached');
-        return null;
-      }
-      
-      final RenderRepaintBoundary? boundary = renderObject as RenderRepaintBoundary?;
-      if (boundary == null) {
-        debugPrint('Error: No se pudo obtener el RepaintBoundary');
-        return null;
-      }
-      
-      // Capturar la imagen con alta calidad
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      if (byteData == null) {
-        debugPrint('Error: No se pudo convertir la imagen a bytes');
-        return null;
-      }
-      
-      debugPrint('Gráfico capturado exitosamente: ${byteData.lengthInBytes} bytes');
-      return byteData.buffer.asUint8List();
-    } catch (e, stackTrace) {
-      debugPrint('Error al capturar gráfico: $e');
-      debugPrint('Stack trace: $stackTrace');
-      return null;
-    }
-  }
 
   Future<void> _generarPDF() async {
     setState(() => _isGeneratingPdf = true);
     
     try {
-      // Capturar el gráfico como imagen ANTES de generar el PDF
-      debugPrint('Intentando capturar gráfico...');
-      final imagenGrafico = await _capturarGraficoComoImagen();
-      
-      if (imagenGrafico != null) {
-        debugPrint('✅ Gráfico capturado exitosamente: ${imagenGrafico.length} bytes');
-      } else {
-        debugPrint('⚠️ No se pudo capturar el gráfico, usando método alternativo');
-      }
-      
-      // Crear la imagen del PDF antes de construir el documento
-      pw.ImageProvider? imagenPdf;
-      if (imagenGrafico != null) {
-        try {
-          imagenPdf = pw.MemoryImage(imagenGrafico);
-          debugPrint('✅ Imagen PDF creada exitosamente');
-        } catch (e) {
-          debugPrint('❌ Error al crear imagen PDF: $e');
-          imagenPdf = null;
-        }
-      }
-      
       final pdf = pw.Document();
       
       // Determinar título según filtro
       final tipoReporte = _comunaFiltrada != null
-          ? 'Reporte por Comuna'
-          : 'Reporte Municipal';
+          ? 'REPORTE POR COMUNA'
+          : 'REPORTE MUNICIPAL';
       
       final subtitulo = _comunaFiltrada != null
-          ? _comunaFiltrada!.nombreComuna
-          : 'Consolidado General';
+          ? _comunaFiltrada!.nombreComuna.toUpperCase()
+          : 'CONSOLIDADO GENERAL';
       
       final porcentajeAvance = _totalLuminarias > 0 
           ? ((_totalEntregadas / _totalLuminarias) * 100).toStringAsFixed(1)
           : '0';
       
+      final fechaActual = DateTime.now();
+      final fechaFormateada = '${fechaActual.day.toString().padLeft(2, '0')}/${fechaActual.month.toString().padLeft(2, '0')}/${fechaActual.year}';
+      
       pdf.addPage(
-        pw.Page(
+        pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(40),
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                // Encabezado institucional mejorado
-                pw.Container(
-                  width: double.infinity,
-                  padding: const pw.EdgeInsets.all(24),
-                  decoration: pw.BoxDecoration(
-                    gradient: const pw.LinearGradient(
-                      colors: [PdfColors.blue900, PdfColors.blue800],
-                      begin: pw.Alignment.topLeft,
-                      end: pw.Alignment.bottomRight,
-                    ),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                  ),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              'ALCALDÍA DEL MUNICIPIO GARCÍA DE HEVIA',
-                              style: pw.TextStyle(
-                                fontSize: 14,
-                                fontWeight: pw.FontWeight.bold,
-                                color: PdfColors.white,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                            pw.SizedBox(height: 6),
-                            pw.Text(
-                              'LA FRÍA - ESTADO TÁCHIRA',
-                              style: const pw.TextStyle(
-                                fontSize: 11,
-                                color: PdfColors.white,
-                              ),
-                            ),
-                            pw.SizedBox(height: 4),
-                            pw.Container(
-                              padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: pw.BoxDecoration(
-                                color: PdfColors.white,
-                                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                              ),
-                              child: pw.Text(
-                                'DOCUMENTO OFICIAL',
-                                style: pw.TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: PdfColors.blue900,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+          margin: const pw.EdgeInsets.symmetric(horizontal: 50, vertical: 40),
+          header: (pw.Context context) {
+            return pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.only(bottom: 25),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.blue900, width: 4),
+                ),
+                gradient: const pw.LinearGradient(
+                  colors: [PdfColors.blue50, PdfColors.white],
+                  begin: pw.Alignment.topCenter,
+                  end: pw.Alignment.bottomCenter,
+                ),
+              ),
+              child: pw.Column(
+                children: [
+                  pw.SizedBox(height: 5),
+                  // Línea decorativa superior
+                  pw.Container(
+                    width: double.infinity,
+                    height: 3,
+                    decoration: const pw.BoxDecoration(
+                      gradient: pw.LinearGradient(
+                        colors: [PdfColors.blue900, PdfColors.blue700, PdfColors.blue900],
+                        stops: [0.0, 0.5, 1.0],
                       ),
-                      pw.Container(
-                        width: 60,
-                        height: 60,
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.white,
-                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(30)),
-                        ),
-                        child: pw.Center(
-                          child: pw.Text(
-                            '2026',
-                            style: pw.TextStyle(
-                              fontSize: 18,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.blue900,
-                            ),
-                          ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 12),
+                  // Texto principal
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        'REPÚBLICA BOLIVARIANA DE VENEZUELA',
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                          letterSpacing: 1.0,
                         ),
                       ),
                     ],
                   ),
-                ),
-                pw.SizedBox(height: 25),
-                
-                // Título del plan con formato oficial
-                pw.Container(
-                  width: double.infinity,
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.blue700, width: 2),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    color: PdfColors.white,
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  pw.SizedBox(height: 6),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
                     children: [
                       pw.Text(
-                        widget.tituloPlan.toUpperCase(),
+                        'ALCALDÍA DEL MUNICIPIO GARCÍA DE HEVIA',
                         style: pw.TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.blue900,
                           letterSpacing: 1.2,
                         ),
-                        textAlign: pw.TextAlign.center,
                       ),
-                      pw.SizedBox(height: 8),
+                    ],
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
+                    children: [
+                      pw.Text(
+                        'LA FRÍA - ESTADO TÁCHIRA',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.grey800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 10),
+                  // Banner oficial mejorado
+                  pw.Container(
+                    width: double.infinity,
+                    padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue900,
+                    ),
+                    child: pw.Center(
+                      child: pw.Text(
+                        'DOCUMENTO OFICIAL',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          footer: (pw.Context context) {
+            return pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.only(top: 18),
+              decoration: pw.BoxDecoration(
+                border: pw.Border(
+                  top: pw.BorderSide(color: PdfColors.blue900, width: 2),
+                ),
+                gradient: const pw.LinearGradient(
+                  colors: [PdfColors.white, PdfColors.grey50],
+                  begin: pw.Alignment.topCenter,
+                  end: pw.Alignment.bottomCenter,
+                ),
+              ),
+              child: pw.Column(
+                children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            width: 3,
+                            height: 12,
+                            decoration: const pw.BoxDecoration(
+                              color: PdfColors.blue900,
+                            ),
+                          ),
+                          pw.SizedBox(width: 6),
+                          pw.Text(
+                            'Fecha de Emisión: $fechaFormateada',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.grey800,
+                            ),
+                          ),
+                        ],
+                      ),
                       pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: pw.BoxDecoration(
-                          color: PdfColors.blue100,
-                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          color: PdfColors.blue900,
+                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
                         ),
                         child: pw.Text(
-                          '$tipoReporte - $subtitulo',
+                          'Página ${context.pageNumber} de ${context.pagesCount}',
                           style: pw.TextStyle(
-                            fontSize: 12,
+                            fontSize: 8,
                             fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
+                            color: PdfColors.white,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                pw.SizedBox(height: 20),
-                
-                // Resumen ejecutivo institucional
-                pw.Container(
-                  width: double.infinity,
-                  padding: const pw.EdgeInsets.all(20),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.grey100,
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    border: pw.Border.all(color: PdfColors.blue300, width: 1.5),
-                  ),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildIndicadorPdf(
-                        'SOLICITUDES',
-                        _totalSolicitudes.toString(),
-                        PdfColors.blue700,
+                  pw.SizedBox(height: 6),
+                  pw.Center(
+                    child: pw.Text(
+                      'Sistema de Gestión Municipal - Sala Situacional',
+                      style: pw.TextStyle(
+                        fontSize: 7,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey700,
+                        letterSpacing: 0.5,
                       ),
-                      pw.Container(
-                        width: 1,
-                        height: 40,
-                        color: PdfColors.grey400,
-                      ),
-                      _buildIndicadorPdf(
-                        'AVANCE',
-                        '$porcentajeAvance%',
-                        double.parse(porcentajeAvance) >= 75
-                            ? PdfColors.green700
-                            : double.parse(porcentajeAvance) >= 50
-                                ? PdfColors.orange700
-                                : PdfColors.red700,
-                      ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+            );
+          },
+          build: (pw.Context context) {
+            return [
+              // Título del documento mejorado
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.symmetric(vertical: 25),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    // Línea decorativa superior
+                    pw.Container(
+                      width: 100,
+                      height: 4,
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.SizedBox(height: 15),
+                    pw.Text(
+                      widget.tituloPlan.toUpperCase(),
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                        letterSpacing: 1.5,
+                      ),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                    pw.SizedBox(height: 10),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.blue100,
+                        border: pw.Border.all(color: PdfColors.blue700, width: 1.5),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Text(
+                            tipoReporte,
+                            style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.blue900,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text(
+                            subtitulo,
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(height: 15),
+                    // Línea decorativa inferior
+                    pw.Container(
+                      width: 100,
+                      height: 4,
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                  ],
                 ),
-                pw.SizedBox(height: 20),
-                
-                // Tabla de estadísticas detalladas
-                pw.Text(
-                  'BALANCE DE LUMINARIAS',
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
+              ),
+              
+              pw.SizedBox(height: 25),
+              
+              // Resumen ejecutivo mejorado
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(25),
+                decoration: pw.BoxDecoration(
+                  gradient: const pw.LinearGradient(
+                    colors: [PdfColors.blue50, PdfColors.grey50],
+                    begin: pw.Alignment.topLeft,
+                    end: pw.Alignment.bottomRight,
                   ),
+                  border: pw.Border.all(color: PdfColors.blue900, width: 2.5),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                 ),
-                pw.SizedBox(height: 12),
-                pw.Table(
-                  border: pw.TableBorder.all(
-                    color: PdfColors.grey400,
-                    width: 1,
+                child: pw.Column(
+                  children: [
+                    pw.Container(
+                      width: double.infinity,
+                      padding: const pw.EdgeInsets.symmetric(vertical: 10),
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.blue900,
+                        borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'RESUMEN EJECUTIVO',
+                          style: pw.TextStyle(
+                            fontSize: 13,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 20),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildIndicadorMejorado(
+                          'TOTAL\nSOLICITUDES',
+                          _totalSolicitudes.toString(),
+                          PdfColors.blue900,
+                        ),
+                        pw.Container(
+                          width: 2,
+                          height: 70,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.blue300,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                          ),
+                        ),
+                        _buildIndicadorMejorado(
+                          'LUMINARIAS\nSOLICITADAS',
+                          _totalLuminarias.toString(),
+                          PdfColors.orange700,
+                        ),
+                        pw.Container(
+                          width: 2,
+                          height: 70,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.blue300,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                          ),
+                        ),
+                        _buildIndicadorMejorado(
+                          'LUMINARIAS\nENTREGADAS',
+                          _totalEntregadas.toString(),
+                          PdfColors.green700,
+                        ),
+                        pw.Container(
+                          width: 2,
+                          height: 70,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.blue300,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                          ),
+                        ),
+                        _buildIndicadorMejorado(
+                          'PORCENTAJE\nDE AVANCE',
+                          '$porcentajeAvance%',
+                          double.parse(porcentajeAvance) >= 75
+                              ? PdfColors.green700
+                              : double.parse(porcentajeAvance) >= 50
+                                  ? PdfColors.orange700
+                                  : PdfColors.red700,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 25),
+              
+              // Tabla de balance detallado mejorada
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.only(bottom: 15),
+                child: pw.Row(
+                  children: [
+                    pw.Container(
+                      width: 5,
+                      height: 25,
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Text(
+                      'BALANCE DETALLADO DE LUMINARIAS',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.blue900, width: 2),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                ),
+                child: pw.Table(
+                  border: pw.TableBorder(
+                    left: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    right: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    top: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    bottom: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    horizontalInside: const pw.BorderSide(color: PdfColors.blue900, width: 1),
+                    verticalInside: const pw.BorderSide(color: PdfColors.blue900, width: 1),
                   ),
                   columnWidths: {
                     0: const pw.FlexColumnWidth(3),
-                    1: const pw.FlexColumnWidth(1),
+                    1: const pw.FlexColumnWidth(1.5),
+                    2: const pw.FlexColumnWidth(1.5),
                   },
                   children: [
                     // Encabezado
                     pw.TableRow(
-                      decoration: const pw.BoxDecoration(color: PdfColors.blue900),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.blue900,
+                        borderRadius: const pw.BorderRadius.only(
+                          topLeft: pw.Radius.circular(2),
+                          topRight: pw.Radius.circular(2),
+                        ),
+                      ),
                       children: [
                         pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
+                          padding: const pw.EdgeInsets.all(16),
                           child: pw.Text(
-                            'Concepto',
+                            'CONCEPTO',
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.white,
-                              fontSize: 11,
+                              fontSize: 12,
+                              letterSpacing: 0.8,
                             ),
                           ),
                         ),
                         pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
+                          padding: const pw.EdgeInsets.all(16),
                           child: pw.Text(
-                            'Cantidad',
+                            'CANTIDAD',
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColors.white,
-                              fontSize: 11,
+                              fontSize: 12,
+                              letterSpacing: 0.8,
+                            ),
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(16),
+                          child: pw.Text(
+                            'PORCENTAJE',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              fontSize: 12,
+                              letterSpacing: 0.8,
                             ),
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
                       ],
                     ),
-                    // Filas de datos
-                    _buildPdfTableRow('Luminarias Solicitadas', _totalLuminarias, PdfColors.orange100),
-                    _buildPdfTableRow('Luminarias Entregadas', _totalEntregadas, PdfColors.green100),
-                    _buildPdfTableRow('Luminarias Pendientes', _totalPendientes, PdfColors.red100),
+                  // Filas de datos
+                  _buildFilaInstitucional(
+                    'Luminarias Solicitadas',
+                    _totalLuminarias,
+                    _totalLuminarias > 0 ? 100.0 : 0.0,
+                    PdfColors.white,
+                  ),
+                  _buildFilaInstitucional(
+                    'Luminarias Entregadas',
+                    _totalEntregadas,
+                    _totalLuminarias > 0 
+                        ? ((_totalEntregadas / _totalLuminarias) * 100)
+                        : 0.0,
+                    PdfColors.green50,
+                  ),
+                  _buildFilaInstitucional(
+                    'Luminarias Pendientes',
+                    _totalPendientes,
+                    _totalLuminarias > 0 
+                        ? ((_totalPendientes / _totalLuminarias) * 100)
+                        : 0.0,
+                    PdfColors.red50,
+                  ),
                   ],
                 ),
-                pw.SizedBox(height: 25),
-                
-                // Gráfico de columnas
-                pw.Text(
-                  'DISTRIBUCIÓN DE LUMINARIAS',
-                  style: pw.TextStyle(
-                    fontSize: 14,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
-                  ),
-                ),
-                pw.SizedBox(height: 12),
-                // Generar gráfico directamente en el PDF (más confiable)
-                _buildGraficoColumnasPdf(),
-                pw.SizedBox(height: 25),
-                
-                // Balance por comuna (solo en reporte municipal)
-                if (_comunaFiltrada == null) ...[
-                  pw.Text(
-                    'BALANCE POR COMUNA',
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.grey800,
-                    ),
-                  ),
-                  pw.SizedBox(height: 12),
-                  _buildTablaComunasPdf(),
-                  pw.SizedBox(height: 25),
-                ],
-                
-                // Indicador de progreso visual
-                pw.Text(
-                  'PROGRESO DE EJECUCIÓN',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.LayoutBuilder(
-                  builder: (context, constraints) {
-                    final maxWidth = constraints?.maxWidth ?? 500;
-                    final progressWidth = _totalLuminarias > 0
-                        ? (maxWidth * (_totalEntregadas / _totalLuminarias))
-                        : 0.0;
-                    
-                    return pw.Container(
-                      height: 30,
-                      width: maxWidth,
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: PdfColors.grey400),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                      ),
-                      child: pw.Stack(
-                        children: [
-                          if (progressWidth > 0)
-                            pw.Container(
-                              width: progressWidth,
-                              height: 30,
-                              decoration: const pw.BoxDecoration(
-                                color: PdfColors.green600,
-                                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
-                              ),
-                            ),
-                          pw.Center(
-                            child: pw.Text(
-                              '$porcentajeAvance% Completado',
-                              style: pw.TextStyle(
-                                fontWeight: pw.FontWeight.bold,
-                                fontSize: 11,
-                                color: double.parse(porcentajeAvance) > 20
-                                    ? PdfColors.white
-                                    : PdfColors.grey800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                
-                // Pie de página institucional
-                pw.Spacer(),
+              ),
+              
+              pw.SizedBox(height: 30),
+              
+              // Balance por comuna (solo en reporte municipal)
+              if (_comunaFiltrada == null) ...[
                 pw.Container(
                   width: double.infinity,
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.grey100,
-                    border: pw.Border(
-                      top: pw.BorderSide(color: PdfColors.blue700, width: 2),
-                    ),
-                  ),
-                  child: pw.Column(
+                  padding: const pw.EdgeInsets.only(bottom: 15),
+                  child: pw.Row(
                     children: [
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Text(
-                                'Fecha de Generación:',
-                                style: pw.TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: PdfColors.grey800,
-                                ),
-                              ),
-                              pw.SizedBox(height: 2),
-                              pw.Text(
-                                DateTime.now().toString().split('.')[0],
-                                style: const pw.TextStyle(
-                                  fontSize: 9,
-                                  color: PdfColors.grey700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: pw.BoxDecoration(
-                              color: PdfColors.blue900,
-                              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                            ),
-                            child: pw.Text(
-                              'REPORTE OFICIAL',
-                              style: pw.TextStyle(
-                                fontSize: 9,
-                                fontWeight: pw.FontWeight.bold,
-                                color: PdfColors.white,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.Divider(color: PdfColors.grey400),
-                      pw.SizedBox(height: 6),
-                      pw.Text(
-                        'Sistema de Gestión Municipal - Sala Situacional',
-                        style: const pw.TextStyle(
-                          fontSize: 8,
-                          color: PdfColors.grey600,
+                      pw.Container(
+                        width: 5,
+                        height: 25,
+                        decoration: const pw.BoxDecoration(
+                          color: PdfColors.blue900,
                         ),
-                        textAlign: pw.TextAlign.center,
+                      ),
+                      pw.SizedBox(width: 10),
+                      pw.Text(
+                        'DISTRIBUCIÓN POR COMUNAS',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                          letterSpacing: 0.8,
+                        ),
                       ),
                     ],
                   ),
                 ),
+                pw.SizedBox(height: 8),
+                _buildTablaComunasInstitucional(),
+                pw.SizedBox(height: 30),
               ],
-            );
+              
+              // Indicador de progreso mejorado
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.only(bottom: 15),
+                child: pw.Row(
+                  children: [
+                    pw.Container(
+                      width: 5,
+                      height: 25,
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Text(
+                      'PROGRESO DE EJECUCIÓN DEL PLAN',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(20),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.blue900, width: 2),
+                  color: PdfColors.grey50,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Estado de Ejecución:',
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: pw.BoxDecoration(
+                            color: double.parse(porcentajeAvance) >= 75
+                                ? PdfColors.green700
+                                : double.parse(porcentajeAvance) >= 50
+                                    ? PdfColors.orange700
+                                    : PdfColors.red700,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          ),
+                          child: pw.Text(
+                            '$porcentajeAvance%',
+                            style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 15),
+                    pw.LayoutBuilder(
+                      builder: (context, constraints) {
+                        final maxWidth = constraints?.maxWidth ?? 500;
+                        final progressWidth = _totalLuminarias > 0
+                            ? (maxWidth * (_totalEntregadas / _totalLuminarias))
+                            : 0.0;
+                        
+                        return pw.Container(
+                          height: 32,
+                          width: maxWidth,
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(color: PdfColors.blue900, width: 1.5),
+                            color: PdfColors.white,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          ),
+                          child: pw.Stack(
+                            children: [
+                              if (progressWidth > 0)
+                                pw.Container(
+                                  width: progressWidth,
+                                  height: 32,
+                                  decoration: pw.BoxDecoration(
+                                    color: double.parse(porcentajeAvance) >= 75
+                                        ? PdfColors.green700
+                                        : double.parse(porcentajeAvance) >= 50
+                                            ? PdfColors.orange700
+                                            : PdfColors.red700,
+                                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                                  ),
+                                ),
+                              pw.Center(
+                                child: pw.Text(
+                                  '${_totalEntregadas} de ${_totalLuminarias} luminarias entregadas',
+                                  style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold,
+                                    fontSize: 10,
+                                    color: double.parse(porcentajeAvance) > 20
+                                        ? PdfColors.white
+                                        : PdfColors.grey800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    pw.SizedBox(height: 12),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Pendientes: ${_totalPendientes}',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey700,
+                            fontStyle: pw.FontStyle.italic,
+                          ),
+                        ),
+                        pw.Text(
+                          'Total: $_totalLuminarias',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              pw.SizedBox(height: 30),
+              
+              // Nota final mejorada
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  gradient: const pw.LinearGradient(
+                    colors: [PdfColors.blue50, PdfColors.grey50],
+                    begin: pw.Alignment.topLeft,
+                    end: pw.Alignment.bottomRight,
+                  ),
+                  border: pw.Border.all(color: PdfColors.blue400, width: 1.5),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      children: [
+                        pw.Container(
+                          width: 4,
+                          height: 20,
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(width: 10),
+                        pw.Text(
+                          'NOTA IMPORTANTE',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Este documento ha sido generado automáticamente por el Sistema de Gestión Municipal - Sala Situacional. '
+                      'Los datos presentados reflejan el estado actualizado al momento de su emisión y han sido verificados '
+                      'según los registros oficiales del municipio.',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        color: PdfColors.grey700,
+                        height: 1.4,
+                      ),
+                      textAlign: pw.TextAlign.justify,
+                    ),
+                  ],
+                ),
+              ),
+            ];
           },
         ),
       );
@@ -669,81 +926,41 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     }
   }
 
-  pw.TableRow _buildPdfTableRow(String concepto, int cantidad, PdfColor bgColor) {
-    return pw.TableRow(
-      decoration: pw.BoxDecoration(color: bgColor),
-      children: [
-        pw.Padding(
-          padding: const pw.EdgeInsets.all(12),
-          child: pw.Text(
-            concepto,
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-        ),
-        pw.Padding(
-          padding: const pw.EdgeInsets.all(12),
-          child: pw.Text(
-            cantidad.toString(),
-            style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-            ),
-            textAlign: pw.TextAlign.center,
-          ),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _buildGraficoColumnasPdf() {
-    final maxValue = [_totalLuminarias, _totalEntregadas, _totalPendientes]
-        .reduce((a, b) => a > b ? a : b)
-        .toDouble();
-    
-    const chartHeight = 180.0;
-    const barWidth = 70.0;
-    
+  pw.Widget _buildIndicadorMejorado(String etiqueta, String valor, PdfColor color) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(20),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.blue200, width: 1.5),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
         color: PdfColors.white,
+        border: pw.Border.all(color: color, width: 2),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
       child: pw.Column(
         mainAxisSize: pw.MainAxisSize.min,
         children: [
-          pw.SizedBox(
-            height: chartHeight + 80,
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
-              children: [
-                _buildColumnaPdf(
-                  'Solicitadas',
-                  _totalLuminarias,
-                  maxValue > 0 ? maxValue : 1,
-                  chartHeight,
-                  barWidth,
-                  PdfColors.orange600,
-                ),
-                _buildColumnaPdf(
-                  'Entregadas',
-                  _totalEntregadas,
-                  maxValue > 0 ? maxValue : 1,
-                  chartHeight,
-                  barWidth,
-                  PdfColors.green600,
-                ),
-                _buildColumnaPdf(
-                  'Pendientes',
-                  _totalPendientes,
-                  maxValue > 0 ? maxValue : 1,
-                  chartHeight,
-                  barWidth,
-                  PdfColors.red600,
-                ),
-              ],
+          pw.Text(
+            etiqueta,
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.grey700,
+              letterSpacing: 0.4,
+            ),
+            textAlign: pw.TextAlign.center,
+          ),
+          pw.SizedBox(height: 10),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: pw.BoxDecoration(
+              color: color,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            child: pw.Text(
+              valor,
+              style: pw.TextStyle(
+                fontSize: 22,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
             ),
           ),
         ],
@@ -751,81 +968,101 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     );
   }
 
-  pw.Widget _buildColumnaPdf(
-    String etiqueta,
-    int valor,
-    double maxValor,
-    double alturaMaxima,
-    double ancho,
-    PdfColor color,
+  pw.TableRow _buildFilaInstitucional(
+    String concepto,
+    int cantidad,
+    double porcentaje,
+    PdfColor bgColor,
   ) {
-    final porcentaje = maxValor > 0 ? (valor / maxValor).clamp(0.0, 1.0) : 0.0;
-    var alturaBarra = alturaMaxima * porcentaje;
-    
-    // Altura mínima visible si el valor es mayor a 0
-    if (valor > 0 && alturaBarra < 20) {
-      alturaBarra = 20;
+    // Determinar color del texto según el concepto
+    PdfColor textColor = PdfColors.grey800;
+    if (concepto.contains('Entregadas')) {
+      textColor = PdfColors.green800;
+    } else if (concepto.contains('Pendientes')) {
+      textColor = PdfColors.red800;
+    } else if (concepto.contains('Solicitadas')) {
+      textColor = PdfColors.orange800;
     }
     
-    alturaBarra = alturaBarra.clamp(10.0, alturaMaxima);
-    
-    return pw.Column(
-      mainAxisAlignment: pw.MainAxisAlignment.end,
+    return pw.TableRow(
+      decoration: pw.BoxDecoration(color: bgColor),
       children: [
-        // Valor encima de la columna
-        pw.Text(
-          valor.toString(),
-          style: pw.TextStyle(
-            fontSize: 18,
-            fontWeight: pw.FontWeight.bold,
-            color: color,
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(14),
+          child: pw.Row(
+            children: [
+              pw.Container(
+                width: 4,
+                height: 4,
+                decoration: pw.BoxDecoration(
+                  color: textColor,
+                  shape: pw.BoxShape.circle,
+                ),
+              ),
+              pw.SizedBox(width: 8),
+              pw.Expanded(
+                child: pw.Text(
+                  concepto.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                    color: textColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        pw.SizedBox(height: 8),
-        // Columna
-        pw.Container(
-          width: ancho,
-          height: alturaBarra,
-          decoration: pw.BoxDecoration(
-            color: color,
-            borderRadius: const pw.BorderRadius.only(
-              topLeft: pw.Radius.circular(6),
-              topRight: pw.Radius.circular(6),
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 8),
-        // Etiqueta debajo
-        pw.SizedBox(
-          width: ancho + 10,
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(14),
           child: pw.Text(
-            etiqueta,
+            cantidad.toString(),
             style: pw.TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: pw.FontWeight.bold,
-              color: PdfColors.grey800,
+              color: textColor,
             ),
             textAlign: pw.TextAlign.center,
+          ),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(14),
+          child: pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: pw.BoxDecoration(
+              color: textColor,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+            ),
+            child: pw.Text(
+              '${porcentaje.toStringAsFixed(1)}%',
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
           ),
         ),
       ],
     );
   }
 
-  pw.Widget _buildTablaComunasPdf() {
+  pw.Widget _buildTablaComunasInstitucional() {
     final estadisticasPorComuna = _calcularEstadisticasPorComuna();
     final comunasOrdenadas = estadisticasPorComuna.keys.toList()..sort();
     
     return pw.Table(
       border: pw.TableBorder.all(
-        color: PdfColors.grey400,
-        width: 1,
+        color: PdfColors.blue900,
+        width: 1.5,
       ),
       columnWidths: {
-        0: const pw.FlexColumnWidth(2),
-        1: const pw.FlexColumnWidth(1),
-        2: const pw.FlexColumnWidth(1),
-        3: const pw.FlexColumnWidth(1),
+        0: const pw.FlexColumnWidth(2.5),
+        1: const pw.FlexColumnWidth(1.2),
+        2: const pw.FlexColumnWidth(1.2),
+        3: const pw.FlexColumnWidth(1.2),
       },
       children: [
         // Encabezado
@@ -833,48 +1070,52 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
           decoration: const pw.BoxDecoration(color: PdfColors.blue900),
           children: [
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
-                'Comuna',
+                'COMUNA',
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white,
-                  fontSize: 10,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
-                'Solicitadas',
+                'SOLICITADAS',
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white,
-                  fontSize: 10,
-                ),
-                textAlign: pw.TextAlign.center,
-              ),
-            ),
-            pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
-              child: pw.Text(
-                'Entregadas',
-                style: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.white,
-                  fontSize: 10,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
                 ),
                 textAlign: pw.TextAlign.center,
               ),
             ),
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
-                'Pendientes',
+                'ENTREGADAS',
                 style: pw.TextStyle(
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white,
-                  fontSize: 10,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(12),
+              child: pw.Text(
+                'PENDIENTES',
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
                 ),
                 textAlign: pw.TextAlign.center,
               ),
@@ -887,24 +1128,28 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
           final comunaNombre = entry.value;
           final stats = estadisticasPorComuna[comunaNombre]!;
           
-          final bgColor = index % 2 == 0 ? PdfColors.grey100 : PdfColors.white;
+          final bgColor = index % 2 == 0 ? PdfColors.grey50 : PdfColors.white;
           
           return pw.TableRow(
             decoration: pw.BoxDecoration(color: bgColor),
             children: [
               pw.Padding(
-                padding: const pw.EdgeInsets.all(10),
+                padding: const pw.EdgeInsets.all(11),
                 child: pw.Text(
-                  comunaNombre,
-                  style: const pw.TextStyle(fontSize: 9),
+                  comunaNombre.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.normal,
+                    color: PdfColors.grey800,
+                  ),
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(10),
+                padding: const pw.EdgeInsets.all(11),
                 child: pw.Text(
                   stats['solicitadas'].toString(),
                   style: pw.TextStyle(
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.orange700,
                   ),
@@ -912,11 +1157,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(10),
+                padding: const pw.EdgeInsets.all(11),
                 child: pw.Text(
                   stats['entregadas'].toString(),
                   style: pw.TextStyle(
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.green700,
                   ),
@@ -924,11 +1169,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                 ),
               ),
               pw.Padding(
-                padding: const pw.EdgeInsets.all(10),
+                padding: const pw.EdgeInsets.all(11),
                 child: pw.Text(
                   stats['pendientes'].toString(),
                   style: pw.TextStyle(
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.red700,
                   ),
@@ -943,22 +1188,23 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
           decoration: const pw.BoxDecoration(color: PdfColors.blue100),
           children: [
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
-                'TOTAL',
+                'TOTAL GENERAL',
                 style: pw.TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.blue900,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
                 _totalLuminarias.toString(),
                 style: pw.TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.orange700,
                 ),
@@ -966,11 +1212,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               ),
             ),
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
                 _totalEntregadas.toString(),
                 style: pw.TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.green700,
                 ),
@@ -978,11 +1224,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               ),
             ),
             pw.Padding(
-              padding: const pw.EdgeInsets.all(10),
+              padding: const pw.EdgeInsets.all(12),
               child: pw.Text(
                 _totalPendientes.toString(),
                 style: pw.TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.red700,
                 ),
@@ -990,31 +1236,6 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _buildIndicadorPdf(String etiqueta, String valor, PdfColor color) {
-    return pw.Column(
-      children: [
-        pw.Text(
-          etiqueta,
-          style: pw.TextStyle(
-            fontSize: 10,
-            fontWeight: pw.FontWeight.bold,
-            color: PdfColors.grey700,
-            letterSpacing: 0.5,
-          ),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          valor,
-          style: pw.TextStyle(
-            fontSize: 24,
-            fontWeight: pw.FontWeight.bold,
-            color: color,
-          ),
         ),
       ],
     );
