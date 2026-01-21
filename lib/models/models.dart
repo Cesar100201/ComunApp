@@ -14,6 +14,7 @@ enum NivelVoto { Duro, Blando, Opositor }
 enum TipoOrganizacion { Politico, Institucional, Social, Cultural, Deportiva }
 enum Ambito { Parroquial, Municipal, Regional, Nacional }
 enum Parroquia { LaFria, BocaDeGrita, JoseAntonioPaez }
+enum TipoZona { Rural, Urbano, Mixto }
 enum EstatusObra { PorIniciar, EnEjecucion, Paralizada, Culminada }
 enum TipoSolicitud { Agua, Electrico, Iluminacion, Otros }
 
@@ -92,6 +93,8 @@ class ConsejoComunal implements Syncable {
   late String? rif;
   late String nombreConsejo;
   late List<String> comunidades;
+  @Enumerated(EnumType.name)
+  late TipoZona tipoZona = TipoZona.Urbano;
   late double latitud;
   late double longitud;
   final comuna = IsarLink<Comuna>();

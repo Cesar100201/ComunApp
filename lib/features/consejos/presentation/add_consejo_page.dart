@@ -25,6 +25,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
 
   Comuna? _selectedComuna;
   final List<String> _comunidades = [];
+  TipoZona _selectedTipoZona = TipoZona.Urbano;
   bool _isSaving = false;
   List<Comuna> _comunas = [];
   double? _latitud;
@@ -93,6 +94,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
         ..codigoSitur = _codigoSiturController.text.trim()
         ..rif = _rifController.text.trim().isEmpty ? null : _rifController.text.trim()
         ..nombreConsejo = _nombreConsejoController.text.trim()
+        ..tipoZona = _selectedTipoZona
         ..latitud = _latitud ?? 0.0
         ..longitud = _longitud ?? 0.0
         ..comunidades = _comunidades
@@ -159,6 +161,19 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
                   });
                 },
                 itemToString: (Comuna? value) => value?.nombreComuna ?? "Seleccione...",
+              ),
+              const SizedBox(height: 16),
+              _buildDropdown<TipoZona>(
+                "Tipo de Zona",
+                Icons.terrain,
+                TipoZona.values,
+                _selectedTipoZona,
+                (TipoZona? newValue) {
+                  if (newValue == null) return;
+                  setState(() {
+                    _selectedTipoZona = newValue;
+                  });
+                },
               ),
               const SizedBox(height: 16),
               

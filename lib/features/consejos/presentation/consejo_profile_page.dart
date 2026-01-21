@@ -36,6 +36,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
   
   Comuna? _selectedComuna;
   final List<String> _comunidades = [];
+  TipoZona _selectedTipoZona = TipoZona.Urbano;
   double? _latitud;
   double? _longitud;
 
@@ -66,6 +67,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
         _rifController.text = consejo.rif ?? '';
         _nombreConsejoController.text = consejo.nombreConsejo;
         _comunidades.addAll(consejo.comunidades);
+        _selectedTipoZona = consejo.tipoZona;
         _latitud = consejo.latitud;
         _longitud = consejo.longitud;
         _selectedComuna = consejo.comuna.value;
@@ -83,6 +85,16 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
     final comunas = await _comunaRepo.getAllComunas();
     setState(() {
       _comunas = comunas;
+      if (_selectedComuna != null) {
+        Comuna? seleccionada;
+        for (final comuna in _comunas) {
+          if (comuna.id == _selectedComuna!.id) {
+            seleccionada = comuna;
+            break;
+          }
+        }
+        _selectedComuna = seleccionada;
+      }
     });
   }
 
@@ -132,6 +144,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
         consejoActualizado.codigoSitur = _codigoSiturController.text.trim();
         consejoActualizado.rif = _rifController.text.trim().isEmpty ? null : _rifController.text.trim();
         consejoActualizado.nombreConsejo = _nombreConsejoController.text.trim();
+        consejoActualizado.tipoZona = _selectedTipoZona;
         consejoActualizado.latitud = _latitud ?? 0.0;
         consejoActualizado.longitud = _longitud ?? 0.0;
         consejoActualizado.comunidades = _comunidades;
@@ -276,6 +289,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
               _buildInfoRow("Código SITUR", c.codigoSitur),
               if (c.rif != null && c.rif!.isNotEmpty)
                 _buildInfoRow("RIF", c.rif!),
+              _buildInfoRow("Tipo de Zona", c.tipoZona.toString().split('.').last),
             ],
           ),
           const SizedBox(height: 16),
@@ -384,6 +398,24 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
                 setState(() => _selectedComuna = comuna);
               },
               validator: (value) => value == null ? "Requerido" : null,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<TipoZona>(
+              value: _selectedTipoZona,
+              decoration: const InputDecoration(
+                labelText: "Tipo de Zona *",
+                border: OutlineInputBorder(),
+              ),
+              items: TipoZona.values.map((zona) {
+                return DropdownMenuItem(
+                  value: zona,
+                  child: Text(zona.toString().split('.').last),
+                );
+              }).toList(),
+              onChanged: (zona) {
+                if (zona == null) return;
+                setState(() => _selectedTipoZona = zona);
+              },
             ),
             const SizedBox(height: 16),
             Row(

@@ -22,6 +22,50 @@ class ConsejoRepository {
         .findAll();
   }
 
+  /// Búsqueda por nombre, código SITUR, comuna o parroquia.
+  Future<List<ConsejoComunal>> buscarPorTexto(String query, {int limit = 50}) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+    final queryLower = q.toLowerCase();
+    final parroquia = _parseParroquiaQuery(queryLower);
+
+    return await _isar.consejoComunals
+        .filter()
+        .isDeletedEqualTo(false)
+        .and()
+        .group((g) {
+          var chain = g
+              .nombreConsejoContains(queryLower, caseSensitive: false)
+              .or()
+              .codigoSiturContains(queryLower, caseSensitive: false)
+              .or()
+              .comuna((q) => q.nombreComunaContains(queryLower, caseSensitive: false))
+              .or()
+              .comuna((q) => q.codigoSiturContains(queryLower, caseSensitive: false));
+          if (parroquia != null) {
+            chain = chain.or().comuna((q) => q.parroquiaEqualTo(parroquia));
+          }
+          return chain;
+        })
+        .limit(limit)
+        .findAll();
+  }
+
+  Parroquia? _parseParroquiaQuery(String value) {
+    final normalized = value.trim().toUpperCase().replaceAll(' ', '');
+    if (normalized.isEmpty) return null;
+    if (normalized.contains('BOCA') || normalized.contains('GRITA')) {
+      return Parroquia.BocaDeGrita;
+    }
+    if (normalized.contains('JOSE') || normalized.contains('PAEZ') || normalized.contains('JOSÉ')) {
+      return Parroquia.JoseAntonioPaez;
+    }
+    if (normalized.contains('LAFRIA') || normalized == 'LAFRIA') {
+      return Parroquia.LaFria;
+    }
+    return null;
+  }
+
   Future<void> actualizarConsejo(ConsejoComunal consejo) async {
     await _isar.writeTxn(() async {
       consejo.isSynced = false; // Marcar como pendiente

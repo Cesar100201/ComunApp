@@ -73,13 +73,19 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
         _filtrarLocalizaciones();
       }
       
-      // Procesar dirección
+      // Procesar dirección - parsear componentes
       final direccion = habitanteCompleto.direccion;
-      // Intentar parsear la dirección (esto es aproximado)
       if (direccion.isNotEmpty) {
-        final partes = direccion.split(',');
-        if (partes.length > 0) {
-          _calleController.text = partes[0].trim();
+        _parsearDireccion(direccion);
+        
+        // Intentar identificar la comunidad si hay consejo comunal seleccionado
+        if (_selectedConsejoComunal != null && _selectedConsejoComunal!.comunidades.isNotEmpty) {
+          for (var comunidad in _selectedConsejoComunal!.comunidades) {
+            if (direccion.contains(comunidad)) {
+              _selectedComunidad = comunidad;
+              break;
+            }
+          }
         }
       }
       
@@ -404,6 +410,35 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
         _currentStep--;
       }
     });
+  }
+
+  // ========== PARSING DE DIRECCIÓN ==========
+  void _parsearDireccion(String direccion) {
+    // La dirección tiene formato: Estado, Municipio, Parroquia, Comuna, Consejo, Comunidad, Calle X, Casa Y
+    final partes = direccion.split(',').map((e) => e.trim()).toList();
+    
+    for (var i = 0; i < partes.length; i++) {
+      final parte = partes[i];
+      
+      // Buscar "Calle"
+      if (parte.toLowerCase().startsWith('calle ')) {
+        _calleController.text = parte.substring(6).trim();
+      }
+      // Buscar "Casa"
+      else if (parte.toLowerCase().startsWith('casa ')) {
+        _numeroCasaController.text = parte.substring(5).trim();
+      }
+      // Primer elemento puede ser estado
+      else if (i == 0 && !parte.toLowerCase().contains('calle') && !parte.toLowerCase().contains('casa')) {
+        _estadoController.text = parte;
+      }
+      // Segundo elemento puede ser municipio
+      else if (i == 1 && !parte.toLowerCase().contains('calle') && !parte.toLowerCase().contains('casa')) {
+        _municipioController.text = parte;
+      }
+      // Los elementos intermedios podrían ser parroquia, comuna, consejo, comunidad
+      // pero esos ya se cargan de las relaciones, así que los omitimos
+    }
   }
 
   // ========== CONCATENACIÓN DE DIRECCIÓN ==========

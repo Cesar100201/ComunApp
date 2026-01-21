@@ -4,7 +4,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/consejo_repository.dart';
 import 'add_consejo_page.dart';
+import 'bulk_upload_consejos_page.dart';
 import 'consejo_profile_page.dart';
+import 'search_consejo_page.dart';
 
 class ConsejosListPage extends StatefulWidget {
   const ConsejosListPage({super.key});
@@ -56,6 +58,31 @@ class _ConsejosListPageState extends State<ConsejosListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Consejos Comunales"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: "Buscar consejos",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchConsejoPage()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            tooltip: "Carga masiva",
+            onPressed: () async {
+              final resultado = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BulkUploadConsejosPage()),
+              );
+              if (resultado == true) {
+                _cargarDatos();
+              }
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
