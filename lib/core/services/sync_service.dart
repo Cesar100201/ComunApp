@@ -231,6 +231,7 @@ class SyncService {
   /// Retorna un mapa con 'subidos' y 'descargados'.
   /// 
   /// Lanza [SyncException] si no hay conexión a internet.
+  /// Lanza [QuotaExceededException] si se excede la cuota de Firebase.
   Future<Map<String, int>> sincronizarTodo() async {
     // 1. Verificar Internet
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -267,6 +268,27 @@ class SyncService {
 
       AppLogger.info('Sincronización completada: $totalSubidos subidos, $totalDescargados descargados');
     } catch (e, stackTrace) {
+      // Detectar error de cuota excedida
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('resource_exhausted') || 
+          errorStr.contains('quota exceeded') ||
+          (errorStr.contains('quota') && errorStr.contains('exceeded'))) {
+        
+        // Contar registros pendientes
+        final isar = await DbHelper().db;
+        final pendientes = await isar.habitantes.filter().isSyncedEqualTo(false).count();
+        
+        AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA');
+        AppLogger.info('Registros subidos antes del error: $totalSubidos');
+        AppLogger.info('Registros pendientes: $pendientes');
+        
+        throw QuotaExceededException(
+          'Se ha excedido la cuota diaria de Firebase. Intente nuevamente mañana.',
+          registrosSubidos: totalSubidos,
+          registrosPendientes: pendientes,
+        );
+      }
+      
       AppLogger.error('Error durante sincronización', e, stackTrace);
       rethrow;
     }
@@ -274,6 +296,21 @@ class SyncService {
     return {
       'subidos': totalSubidos,
       'descargados': totalDescargados,
+    };
+  }
+  
+  /// Obtiene el conteo de registros pendientes por sincronizar
+  Future<Map<String, int>> obtenerPendientes() async {
+    final isar = await DbHelper().db;
+    
+    return {
+      'habitantes': await isar.habitantes.filter().isSyncedEqualTo(false).count(),
+      'comunas': await isar.comunas.filter().isSyncedEqualTo(false).count(),
+      'consejos': await isar.consejoComunals.filter().isSyncedEqualTo(false).count(),
+      'organizaciones': await isar.organizacions.filter().isSyncedEqualTo(false).count(),
+      'claps': await isar.claps.filter().isSyncedEqualTo(false).count(),
+      'proyectos': await isar.proyectos.filter().isSyncedEqualTo(false).count(),
+      'solicitudes': await isar.solicituds.filter().isSyncedEqualTo(false).count(),
     };
   }
 
@@ -352,6 +389,15 @@ class SyncService {
         }
       });
     } catch (e) {
+      // Detectar error de cuota excedida
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('resource_exhausted') || 
+          errorStr.contains('quota exceeded') ||
+          errorStr.contains('quota') && errorStr.contains('exceeded')) {
+        AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA - Deteniendo sincronización');
+        rethrow; // Propagar para que sincronizarTodo lo maneje
+      }
+      
       AppLogger.error('Error en batch de habitantes', e);
       // Fallback: intentar uno por uno
       for (var h in items) {
@@ -377,6 +423,12 @@ class SyncService {
             await isar.habitantes.put(h);
           });
         } catch (e2) {
+          // También verificar cuota en fallback
+          final errorStr2 = e2.toString().toLowerCase();
+          if (errorStr2.contains('resource_exhausted') || errorStr2.contains('quota')) {
+            AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA en fallback');
+            rethrow;
+          }
           AppLogger.warning('Error subiendo habitante ${h.cedula} (fallback): $e2');
         }
       }

@@ -321,8 +321,8 @@ class Validators {
   // COORDENADAS
   // ============================================================================
 
-  /// Valida una coordenada de latitud.
-  static String? validarLatitud(double? value) {
+  /// Valida una coordenada de latitud geográfica.
+  static String? validarCoordenadaLatitud(double? value) {
     if (value == null) return null;
     
     if (value < -90 || value > 90) {
@@ -332,8 +332,8 @@ class Validators {
     return null;
   }
 
-  /// Valida una coordenada de longitud.
-  static String? validarLongitud(double? value) {
+  /// Valida una coordenada de longitud geográfica.
+  static String? validarCoordenadaLongitud(double? value) {
     if (value == null) return null;
     
     if (value < -180 || value > 180) {

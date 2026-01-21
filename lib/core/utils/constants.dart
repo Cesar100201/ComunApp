@@ -80,6 +80,23 @@ class SyncException implements Exception {
   }
 }
 
+/// Excepción específica para cuota de Firebase excedida
+class QuotaExceededException implements Exception {
+  final String message;
+  final int? registrosSubidos;
+  final int? registrosPendientes;
+
+  QuotaExceededException(this.message, {this.registrosSubidos, this.registrosPendientes});
+
+  @override
+  String toString() {
+    String info = 'QuotaExceededException: $message';
+    if (registrosSubidos != null) info += '\nRegistros subidos: $registrosSubidos';
+    if (registrosPendientes != null) info += '\nRegistros pendientes: $registrosPendientes';
+    return info;
+  }
+}
+
 /// Excepción para errores de validación
 class ValidationException implements Exception {
   final String message;

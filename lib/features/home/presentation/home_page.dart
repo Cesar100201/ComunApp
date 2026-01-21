@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../auth/presentation/login_page.dart';
 import '../../inhabitants/presentation/habitantes_menu_page.dart';
 import '../../local/presentation/local_menu_page.dart';
 import '../../comunas/presentation/add_comuna_page.dart';
@@ -10,18 +9,50 @@ import '../../claps/presentation/add_clap_page.dart';
 import '../../solicitudes/presentation/add_solicitud_page.dart';
 import '../../../../core/services/sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/constants.dart' show QuotaExceededException;
+import '../../../../main.dart' show firebaseInitialized;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-      (route) => false,
+    // Verificar si Firebase está disponible
+    if (!firebaseInitialized) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La aplicación está en modo offline. No hay sesión activa.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Mostrar diálogo de confirmación
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text('¿Está seguro que desea cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
     );
+
+    if (confirmar == true) {
+      // Solo hacer signOut - el StreamBuilder en main.dart
+      // detectará el cambio y navegará al LoginPage automáticamente
+      await FirebaseAuth.instance.signOut();
+    }
   }
 
   @override
@@ -39,11 +70,25 @@ class HomePage extends StatelessWidget {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () => _logout(context),
-            tooltip: "Cerrar sesión",
-          ),
+          // Solo mostrar botón de logout si Firebase está disponible
+          if (firebaseInitialized)
+            IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: () => _logout(context),
+              tooltip: "Cerrar sesión",
+            )
+          else
+            // Indicador de modo offline
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Chip(
+                avatar: const Icon(Icons.cloud_off, size: 16, color: Colors.white),
+                label: const Text('Offline', style: TextStyle(color: Colors.white, fontSize: 12)),
+                backgroundColor: Colors.orange,
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
         ],
       ),
       body: ListView(
@@ -241,6 +286,72 @@ class HomePage extends StatelessWidget {
                       ),
                     );
                   }
+                }
+              } on QuotaExceededException catch (e) {
+                // Error específico de cuota excedida
+                if (context.mounted) {
+                  Navigator.pop(context); // Cerrar diálogo de progreso
+                  
+                  // Mostrar diálogo informativo sobre la cuota
+                  showDialog(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+                          const SizedBox(width: 12),
+                          const Expanded(child: Text('Cuota de Firebase Excedida')),
+                        ],
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Se ha alcanzado el límite diario de escrituras en Firebase.',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryUltraLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (e.registrosSubidos != null)
+                                  Text('✓ Registros subidos: ${e.registrosSubidos}',
+                                      style: TextStyle(color: AppColors.success)),
+                                if (e.registrosPendientes != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text('⏳ Pendientes: ${e.registrosPendientes}',
+                                        style: TextStyle(color: AppColors.warning)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            '¿Qué hacer?',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text('• La cuota se reinicia cada 24 horas'),
+                          const Text('• Los datos están guardados localmente'),
+                          const Text('• Intente sincronizar mañana'),
+                        ],
+                      ),
+                      actions: [
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('ENTENDIDO'),
+                        ),
+                      ],
+                    ),
+                  );
                 }
               } catch (e) {
                 if (context.mounted) {
