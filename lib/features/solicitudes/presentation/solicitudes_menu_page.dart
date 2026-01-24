@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'add_solicitud_page.dart';
 import 'solicitudes_list_page.dart';
+import 'bulk_upload_solicitudes_page.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class SolicitudesMenuPage extends StatelessWidget {
@@ -28,13 +29,29 @@ class SolicitudesMenuPage extends StatelessWidget {
             ),
           ),
 
-          // TARJETA 2: LISTA DE SOLICITUDES
+          // TARJETA 2: CARGA MASIVA
+          _buildActionCard(
+            context,
+            title: "Carga Masiva",
+            subtitle: "Importar múltiples solicitudes desde Excel/CSV",
+            icon: Icons.upload_file_rounded,
+            color: AppColors.info,
+            onTap: () async {
+              final resultado = await Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => const BulkUploadSolicitudesPage())
+              );
+              // Si se guardaron datos, se puede recargar la lista si es necesario
+            },
+          ),
+
+          // TARJETA 3: LISTA DE SOLICITUDES
           _buildActionCard(
             context,
             title: "Lista de Solicitudes",
             subtitle: "Ver y gestionar todas las solicitudes registradas",
             icon: Icons.list_rounded,
-            color: AppColors.info,
+            color: AppColors.primary,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SolicitudesListPage()),

@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/vinculacion_repository.dart';
 import '../../organizaciones/data/repositories/organizacion_repository.dart';
+import 'organizacion_miembros_page.dart';
 
 // Clase helper para representar tanto organizaciones como consejos comunales
 class EntidadVinculable {
@@ -240,63 +241,78 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        leading: CircleAvatar(
-          backgroundColor: v.activo ? colorIcono.withOpacity(0.1) : AppColors.textTertiary.withOpacity(0.1),
-          child: Icon(
-            icono,
-            color: colorIcono,
-          ),
-        ),
-        title: Text(
-          nombreEntidad,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
+      child: InkWell(
+        onTap: () {
+          // Navegar a la página de miembros de la organización/consejo comunal
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OrganizacionMiembrosPage(
+                organizacion: v.organizacion.value,
+                consejoComunal: v.consejoComunal.value,
               ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (tipoEntidad.isNotEmpty)
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          leading: CircleAvatar(
+            backgroundColor: v.activo ? colorIcono.withOpacity(0.1) : AppColors.textTertiary.withOpacity(0.1),
+            child: Icon(
+              icono,
+              color: colorIcono,
+            ),
+          ),
+          title: Text(
+            nombreEntidad,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (tipoEntidad.isNotEmpty)
+                  Text(
+                    tipoEntidad,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                  ),
                 Text(
-                  tipoEntidad,
+                  "Cargo: ${v.cargo}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                        fontStyle: FontStyle.italic,
+                        color: AppColors.textSecondary,
                       ),
                 ),
-              Text(
-                "Cargo: ${v.cargo}",
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                Text(
+                  "Ámbito: ${v.ambito.toString().split('.').last}",
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
+                onPressed: () => _editarVinculacion(v),
+                tooltip: "Editar",
               ),
-              Text(
-                "Ámbito: ${v.ambito.toString().split('.').last}",
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+              IconButton(
+                icon: Icon(Icons.delete, color: AppColors.error, size: 20),
+                onPressed: () => _eliminarVinculacion(v),
+                tooltip: "Eliminar",
               ),
             ],
           ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
-              onPressed: () => _editarVinculacion(v),
-              tooltip: "Editar",
-            ),
-            IconButton(
-              icon: Icon(Icons.delete, color: AppColors.error, size: 20),
-              onPressed: () => _eliminarVinculacion(v),
-              tooltip: "Eliminar",
-            ),
-          ],
         ),
       ),
     );

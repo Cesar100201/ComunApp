@@ -60,4 +60,44 @@ class VinculacionRepository {
       }
     });
   }
+
+  /// Obtiene todas las vinculaciones de una organización específica
+  Future<List<Vinculacion>> getVinculacionesPorOrganizacion(Id organizacionId) async {
+    final vinculaciones = await _isar.vinculacions
+        .filter()
+        .isDeletedEqualTo(false)
+        .findAll();
+    
+    // Filtrar por organización después de cargar las relaciones
+    final result = <Vinculacion>[];
+    for (var v in vinculaciones) {
+      await v.organizacion.load();
+      if (v.organizacion.value?.id == organizacionId) {
+        await v.persona.load();
+        result.add(v);
+      }
+    }
+    
+    return result;
+  }
+
+  /// Obtiene todas las vinculaciones de un consejo comunal específico
+  Future<List<Vinculacion>> getVinculacionesPorConsejoComunal(Id consejoComunalId) async {
+    final vinculaciones = await _isar.vinculacions
+        .filter()
+        .isDeletedEqualTo(false)
+        .findAll();
+    
+    // Filtrar por consejo comunal después de cargar las relaciones
+    final result = <Vinculacion>[];
+    for (var v in vinculaciones) {
+      await v.consejoComunal.load();
+      if (v.consejoComunal.value?.id == consejoComunalId) {
+        await v.persona.load();
+        result.add(v);
+      }
+    }
+    
+    return result;
+  }
 }

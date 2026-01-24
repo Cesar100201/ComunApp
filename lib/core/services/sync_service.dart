@@ -342,14 +342,27 @@ class SyncService {
 
   Future<int> _syncHabitantes() async {
     final isar = await DbHelper().db;
-    final pendientes = await isar.habitantes.filter().isSyncedEqualTo(false).findAll();
-    if (pendientes.isEmpty) return 0;
+    
+    // Primero contar cuántos hay pendientes (rápido)
+    final totalPendientes = await isar.habitantes.filter().isSyncedEqualTo(false).count();
+    if (totalPendientes == 0) return 0;
 
     int count = 0;
     const batchSize = AppConstants.batchSize;
+    int offset = 0;
     
-    for (int i = 0; i < pendientes.length; i += batchSize) {
-      final lote = pendientes.skip(i).take(batchSize).toList();
+    // Procesar en lotes sin cargar todos en memoria
+    while (offset < totalPendientes) {
+      // Obtener solo el lote actual
+      final lote = await isar.habitantes
+          .filter()
+          .isSyncedEqualTo(false)
+          .offset(offset)
+          .limit(batchSize)
+          .findAll();
+      
+      if (lote.isEmpty) break;
+      
       final batch = _firestore.batch();
       final paraMarcar = <Habitante>[];
 
@@ -393,6 +406,7 @@ class SyncService {
       }
 
       await _commitHabitantesBatch(isar, batch, paraMarcar);
+      offset += batchSize;
     }
     
     AppLogger.debug('_syncHabitantes: Subidos $count habitantes');
@@ -538,14 +552,26 @@ class SyncService {
 
   Future<int> _syncSolicitudes() async {
     final isar = await DbHelper().db;
-    final pendientes = await isar.solicituds.filter().isSyncedEqualTo(false).findAll();
-    if (pendientes.isEmpty) return 0;
+    
+    // Primero contar cuántos hay pendientes (rápido)
+    final totalPendientes = await isar.solicituds.filter().isSyncedEqualTo(false).count();
+    if (totalPendientes == 0) return 0;
 
     int count = 0;
     const batchSize = AppConstants.batchSize;
+    int offset = 0;
     
-    for (int i = 0; i < pendientes.length; i += batchSize) {
-      final lote = pendientes.skip(i).take(batchSize).toList();
+    // Procesar en lotes sin cargar todos en memoria
+    while (offset < totalPendientes) {
+      // Obtener solo el lote actual
+      final lote = await isar.solicituds
+          .filter()
+          .isSyncedEqualTo(false)
+          .offset(offset)
+          .limit(batchSize)
+          .findAll();
+      
+      if (lote.isEmpty) break;
       final batch = _firestore.batch();
       final paraMarcar = <Solicitud>[];
 
@@ -601,6 +627,7 @@ class SyncService {
       }
 
       await _commitSolicitudesBatch(isar, batch, paraMarcar);
+      offset += batchSize;
     }
     
     return count;
@@ -723,36 +750,59 @@ class SyncService {
 
   Future<int> _syncBitacora() async {
     final isar = await DbHelper().db;
-    final logsPendientes = await isar.bitacoras.filter().isSyncedEqualTo(false).findAll();
-    if (logsPendientes.isEmpty) return 0;
+    
+    // Primero contar cuántos hay pendientes (rápido)
+    final totalPendientes = await isar.bitacoras.filter().isSyncedEqualTo(false).count();
+    if (totalPendientes == 0) return 0;
 
     int count = 0;
-    final batch = _firestore.batch();
+    const batchSize = AppConstants.batchSize;
+    int offset = 0;
+    final paraMarcar = <Bitacora>[];
 
-    for (var log in logsPendientes) {
-      await log.usuarioResponsable.load();
+    // Procesar en lotes sin cargar todos en memoria
+    while (offset < totalPendientes) {
+      // Obtener solo el lote actual
+      final lote = await isar.bitacoras
+          .filter()
+          .isSyncedEqualTo(false)
+          .offset(offset)
+          .limit(batchSize)
+          .findAll();
       
-      final docRef = _firestore.collection('auditoria_logs').doc();
-      batch.set(docRef, {
-        'fechaHora': Timestamp.fromDate(log.fechaHora),
-        'accion': log.accion,
-        'tablaAfectada': log.tablaAfectada,
-        'detalles': log.detalles,
-        'usuarioResponsable': log.usuarioResponsable.value?.nombreCompleto ?? 'Desconocido',
-        'usuarioCedula': log.usuarioResponsable.value?.cedula ?? 0,
-      });
-      count++;
-    }
+      if (lote.isEmpty) break;
+      
+      final batch = _firestore.batch();
 
-    if (count > 0) {
-      await batch.commit();
-      await isar.writeTxn(() async {
-        for (var log in logsPendientes) {
-          log.isSynced = true;
-          await isar.bitacoras.put(log);
-        }
-      });
+      for (var log in lote) {
+        await log.usuarioResponsable.load();
+        
+        final docRef = _firestore.collection('auditoria_logs').doc();
+        batch.set(docRef, {
+          'fechaHora': Timestamp.fromDate(log.fechaHora),
+          'accion': log.accion,
+          'tablaAfectada': log.tablaAfectada,
+          'detalles': log.detalles,
+          'usuarioResponsable': log.usuarioResponsable.value?.nombreCompleto ?? 'Desconocido',
+          'usuarioCedula': log.usuarioResponsable.value?.cedula ?? 0,
+        });
+        paraMarcar.add(log);
+        count++;
+      }
+
+      if (lote.isNotEmpty) {
+        await batch.commit();
+        await isar.writeTxn(() async {
+          for (var log in lote) {
+            log.isSynced = true;
+            await isar.bitacoras.put(log);
+          }
+        });
+      }
+      
+      offset += batchSize;
     }
+    
     return count;
   }
 

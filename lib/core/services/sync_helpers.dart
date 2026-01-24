@@ -60,12 +60,16 @@ class SyncHelper {
   /// Retorna el número de items sincronizados exitosamente.
   Future<int> uploadPending<T extends Syncable>(SyncConfig<T> config) async {
     final isar = await DbHelper().db;
+    
+    // Obtener todos los pendientes (esto puede ser lento si hay muchos, pero necesario para contar)
+    // En el futuro, podríamos optimizar esto con un método countPendingItems
     final pendientes = await config.getPendingItems(isar);
     
     if (pendientes.isEmpty) return 0;
 
     int count = 0;
     
+    // Procesar en lotes para evitar cargar todos en memoria si la lista es muy grande
     for (int i = 0; i < pendientes.length; i += _batchSize) {
       final lote = pendientes.skip(i).take(_batchSize).toList();
       final batch = _firestore.batch();

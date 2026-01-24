@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:isar/isar.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../database/db_helper.dart';
+import '../../../../models/models.dart';
 import '../../inhabitants/presentation/habitantes_list_page.dart';
 import '../../comunas/presentation/comunas_list_page.dart';
 import '../../consejos/presentation/consejos_comunales_list_page.dart';
@@ -7,14 +10,169 @@ import '../../organizations/presentation/organizaciones_list_page.dart';
 import '../../claps/presentation/claps_list_page.dart';
 import '../../solicitudes/presentation/solicitudes_list_page.dart';
 
-class LocalMenuPage extends StatelessWidget {
+class LocalMenuPage extends StatefulWidget {
   const LocalMenuPage({super.key});
+
+  @override
+  State<LocalMenuPage> createState() => _LocalMenuPageState();
+}
+
+class _LocalMenuPageState extends State<LocalMenuPage> {
+  int _sincronizados = 0;
+  int _pendientes = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarEstadisticas();
+  }
+
+  Future<void> _cargarEstadisticas() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final isar = await DbHelper().db;
+      
+      // Contar registros sincronizados y pendientes de todas las colecciones
+      int sincronizados = 0;
+      int pendientes = 0;
+      
+      // Habitantes
+      final todosHabitantes = await isar.habitantes
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final habitantesSync = todosHabitantes.where((h) => h.isSynced == true).length;
+      final habitantesPend = todosHabitantes.where((h) => h.isSynced == false).length;
+      sincronizados += habitantesSync;
+      pendientes += habitantesPend;
+      
+      // Organizaciones
+      final todasOrgs = await isar.organizacions
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final orgsSync = todasOrgs.where((o) => o.isSynced == true).length;
+      final orgsPend = todasOrgs.where((o) => o.isSynced == false).length;
+      sincronizados += orgsSync;
+      pendientes += orgsPend;
+      
+      // Vinculaciones
+      final todasVinculaciones = await isar.vinculacions
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final vincSync = todasVinculaciones.where((v) => v.isSynced == true).length;
+      final vincPend = todasVinculaciones.where((v) => v.isSynced == false).length;
+      sincronizados += vincSync;
+      pendientes += vincPend;
+      
+      // Consejos Comunales
+      final todosConsejos = await isar.consejoComunals
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final consejosSync = todosConsejos.where((c) => c.isSynced == true).length;
+      final consejosPend = todosConsejos.where((c) => c.isSynced == false).length;
+      sincronizados += consejosSync;
+      pendientes += consejosPend;
+      
+      // Comunas
+      final todasComunas = await isar.comunas
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final comunasSync = todasComunas.where((c) => c.isSynced == true).length;
+      final comunasPend = todasComunas.where((c) => c.isSynced == false).length;
+      sincronizados += comunasSync;
+      pendientes += comunasPend;
+      
+      // Proyectos
+      final todosProyectos = await isar.proyectos
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final proyectosSync = todosProyectos.where((p) => p.isSynced == true).length;
+      final proyectosPend = todosProyectos.where((p) => p.isSynced == false).length;
+      sincronizados += proyectosSync;
+      pendientes += proyectosPend;
+      
+      // CLAPs
+      final todosClaps = await isar.claps
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final clapsSync = todosClaps.where((c) => c.isSynced == true).length;
+      final clapsPend = todosClaps.where((c) => c.isSynced == false).length;
+      sincronizados += clapsSync;
+      pendientes += clapsPend;
+      
+      // Solicitudes
+      final todasSolicitudes = await isar.solicituds
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final solicitudesSync = todasSolicitudes.where((s) => s.isSynced == true).length;
+      final solicitudesPend = todasSolicitudes.where((s) => s.isSynced == false).length;
+      sincronizados += solicitudesSync;
+      pendientes += solicitudesPend;
+      
+      // Reportes
+      final todosReportes = await isar.reportes
+          .filter()
+          .isDeletedEqualTo(false)
+          .findAll();
+      final reportesSync = todosReportes.where((r) => r.isSynced == true).length;
+      final reportesPend = todosReportes.where((r) => r.isSynced == false).length;
+      sincronizados += reportesSync;
+      pendientes += reportesPend;
+      
+      if (mounted) {
+        setState(() {
+          _sincronizados = sincronizados;
+          _pendientes = pendientes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Base de Datos Local"),
+        actions: [
+          if (!_isLoading)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildContador(
+                    icon: Icons.cloud_done,
+                    cantidad: _sincronizados,
+                    color: AppColors.success,
+                    tooltip: "En línea",
+                  ),
+                  const SizedBox(width: 12),
+                  _buildContador(
+                    icon: Icons.cloud_off,
+                    cantidad: _pendientes,
+                    color: AppColors.warning,
+                    tooltip: "Pendientes",
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -97,6 +255,47 @@ class LocalMenuPage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      floatingActionButton: _isLoading
+          ? null
+          : FloatingActionButton(
+              onPressed: _cargarEstadisticas,
+              tooltip: "Actualizar estadísticas",
+              child: const Icon(Icons.refresh),
+            ),
+    );
+  }
+
+  Widget _buildContador({
+    required IconData icon,
+    required int cantidad,
+    required Color color,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Text(
+              cantidad.toString(),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

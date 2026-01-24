@@ -20,6 +20,7 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   bool _repoInicializado = false;
+  int _totalHabitantes = 0;
   static const int _pageSize = 80;
   final ScrollController _scrollController = ScrollController();
 
@@ -56,9 +57,12 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
 
   Future<void> _inicializarRepositorio() async {
     final isar = await DbHelper().db;
+    final repo = HabitanteRepository(isar);
+    final total = await repo.contar();
     setState(() {
-      _repo = HabitanteRepository(isar);
+      _repo = repo;
       _repoInicializado = true;
+      _totalHabitantes = total;
     });
     _cargarPrimeraPagina();
   }
@@ -71,10 +75,12 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
     }
     setState(() => _isLoading = true);
     final datos = await _repo!.obtenerPaginado(0, _pageSize);
+    final total = await _repo!.contar();
     if (mounted) {
       setState(() {
         _habitantes = datos;
         _hasMore = datos.length >= _pageSize;
+        _totalHabitantes = total;
         _isLoading = false;
       });
     }
@@ -205,6 +211,19 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Padrón Municipal"),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(30),
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              "Total de Habitantes: $_totalHabitantes",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -233,18 +252,72 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
               : ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: _habitantes.length + ((_hasMore && _isLoadingMore) ? 1 : 0),
+                  itemCount: _habitantes.length + ((_hasMore && _isLoadingMore) ? 1 : 0) + 1,
                   itemBuilder: (context, index) {
-                    if (index >= _habitantes.length) {
+                    // Mostrar tarjeta de total al inicio
+                    if (index == 0) {
+                      return _buildTotalCard();
+                    }
+                    // Ajustar índice para los habitantes
+                    final habitanteIndex = index - 1;
+                    if (habitanteIndex >= _habitantes.length) {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
                         child: Center(child: CircularProgressIndicator()),
                       );
                     }
-                    final p = _habitantes[index];
+                    final p = _habitantes[habitanteIndex];
                     return _buildHabitanteCard(p);
                   },
                 ),
+    );
+  }
+
+  Widget _buildTotalCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: AppColors.primary.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.people,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Total de Habitantes Registrados",
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _totalHabitantes.toString(),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

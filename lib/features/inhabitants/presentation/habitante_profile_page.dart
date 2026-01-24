@@ -28,7 +28,7 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
   HabitanteRepository? _repo;
   VinculacionRepository? _vinculacionRepo;
   bool _repoInicializado = false;
-  int _vinculacionesCount = 0;
+  List<Vinculacion> _vinculaciones = [];
 
   @override
   void initState() {
@@ -59,12 +59,12 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
       await habitante.clap.load();
       await habitante.jefeDeFamilia.load();
       
-      // Contar vinculaciones
+      // Cargar vinculaciones
       final vinculaciones = await _vinculacionRepo!.getVinculacionesPorHabitante(habitante.id);
       
       setState(() {
         _habitanteCompleto = habitante;
-        _vinculacionesCount = vinculaciones.length;
+        _vinculaciones = vinculaciones;
         _isLoading = false;
       });
     } else {
@@ -306,15 +306,69 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                   _cargarDatosCompletos();
                 }
               },
-              children: [
-                _buildInfoRow(
-                  "Organizaciones vinculadas",
-                  _vinculacionesCount == 0 
-                      ? "Sin vinculaciones" 
-                      : "$_vinculacionesCount organización${_vinculacionesCount > 1 ? 'es' : ''}",
-                  valueColor: _vinculacionesCount > 0 ? AppColors.success : AppColors.textSecondary,
-                ),
-              ],
+              children: _vinculaciones.isEmpty
+                  ? [
+                      _buildInfoRow(
+                        "Organizaciones vinculadas",
+                        "Sin vinculaciones",
+                        valueColor: AppColors.textSecondary,
+                      ),
+                    ]
+                  : _vinculaciones.map((vinculacion) {
+                      final organizacion = vinculacion.organizacion.value;
+                      final nombreOrganizacion = organizacion?.nombreLargo ?? 
+                          organizacion?.abreviacion ?? 
+                          "Organización desconocida";
+                      final cargo = vinculacion.cargo;
+                      final activo = vinculacion.activo;
+                      
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: activo 
+                                    ? AppColors.success.withOpacity(0.1)
+                                    : AppColors.textTertiary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                activo ? "Activo" : "Inactivo",
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: activo ? AppColors.success : AppColors.textTertiary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    nombreOrganizacion,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: AppColors.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Cargo: $cargo",
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
             ),
             const SizedBox(height: 16),
 
@@ -395,48 +449,59 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
     required List<Widget> children,
     VoidCallback? onEdit,
   }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryUltraLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: AppColors.primary, size: 20),
+    Widget cardContent = Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryUltraLight,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
+                child: Icon(icon, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-                if (onEdit != null)
-                  IconButton(
-                    icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
-                    onPressed: onEdit,
-                    tooltip: "Editar",
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...children,
-          ],
-        ),
+              ),
+              if (onEdit != null)
+                Icon(
+                  Icons.edit,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
       ),
     );
+
+    // Si hay onEdit, hacer toda la tarjeta presionable
+    if (onEdit != null) {
+      return Card(
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(12),
+          child: cardContent,
+        ),
+      );
+    } else {
+      return Card(
+        child: cardContent,
+      );
+    }
   }
 
   Widget _buildInfoRow(String label, String value, {Color? valueColor}) {

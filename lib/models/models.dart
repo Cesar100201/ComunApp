@@ -68,7 +68,11 @@ class Habitante implements Syncable {
   // NUEVO: Núcleo Familiar (Apunta al Jefe de Hogar)
   // Si este campo está vacío, asumimos que él es su propio jefe o vive solo.
   final jefeDeFamilia = IsarLink<Habitante>(); 
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -80,7 +84,11 @@ class Organizacion implements Syncable {
   @Enumerated(EnumType.name)
   late TipoOrganizacion tipo;
   late List<Cargo> cargos = []; // Lista de cargos disponibles en esta organización
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -94,7 +102,11 @@ class Vinculacion implements Syncable {
   final persona = IsarLink<Habitante>();
   final organizacion = IsarLink<Organizacion>();
   final consejoComunal = IsarLink<ConsejoComunal>(); // Vinculación a consejo comunal (opcional)
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -112,7 +124,11 @@ class ConsejoComunal implements Syncable {
   late double longitud;
   late List<Cargo> cargos = []; // Lista de cargos de la estructura organizativa del consejo
   final comuna = IsarLink<Comuna>();
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -129,7 +145,11 @@ class Comuna implements Syncable {
   late Parroquia parroquia;
   late double latitud;
   late double longitud;
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -144,7 +164,11 @@ class Proyecto implements Syncable {
   late int transformacion; // 1 al 7
   final consejoBeneficiario = IsarLink<ConsejoComunal>();
   final consejoEjecutor = IsarLink<ConsejoComunal>(); 
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -157,7 +181,11 @@ class SeguimientoObra implements Syncable {
   late String? evidenciaFotoUrl;
   final proyecto = IsarLink<Proyecto>();
   final inspector = IsarLink<Habitante>();
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -166,7 +194,11 @@ class Clap implements Syncable {
   Id id = Isar.autoIncrement;
   late String nombreClap;
   final jefeComunidad = IsarLink<Habitante>();
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -190,7 +222,10 @@ class Solicitud implements Syncable {
   int? cantidadLamparas;
   int? cantidadBombillos;
 
+  @Index()
   late bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -207,7 +242,11 @@ class Bitacora implements Syncable {
 
   // ¿Quién hizo la acción?
   final usuarioResponsable = IsarLink<Habitante>();
+  
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
 
@@ -237,6 +276,9 @@ class Reporte implements Syncable {
   // Usuario que creó el reporte
   final creador = IsarLink<Habitante>();
   
+  @Index()
   bool isSynced = false;
+  
+  @Index()
   bool isDeleted = false;
 }
