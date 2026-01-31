@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../database/db_helper.dart';
-import '../data/repositories/habitante_repository.dart';
-import '../data/repositories/vinculacion_repository.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/habitante_repository.dart';
+import '../../../../core/contracts/vinculacion_repository.dart';
 import 'edit_habitante_info_personal_page.dart';
 import 'edit_habitante_direccion_page.dart';
 import 'edit_habitante_caracterizacion_page.dart';
@@ -31,47 +31,54 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
   List<Vinculacion> _vinculaciones = [];
 
   @override
-  void initState() {
-    super.initState();
-    _inicializarRepositorio();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_repoInicializado) {
+      final config = AppConfigScope.of(context);
+      _repo = config.habitanteRepository;
+      _vinculacionRepo = config.vinculacionRepository;
+      _repoInicializado = true;
+      _cargarDatosCompletos();
+    }
   }
 
   Future<void> _inicializarRepositorio() async {
-    final isar = await DbHelper().db;
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
+    final config = AppConfigScope.of(context);
     setState(() {
-      _repo = HabitanteRepository(isar);
-      _vinculacionRepo = VinculacionRepository(isar);
+      _repo = config.habitanteRepository;
+      _vinculacionRepo = config.vinculacionRepository;
       _repoInicializado = true;
     });
-    _cargarDatosCompletos();
   }
 
   Future<void> _cargarDatosCompletos() async {
-    if (!_repoInicializado || _repo == null) {
-      await _inicializarRepositorio();
-    }
-    final isar = await DbHelper().db;
-    final habitante = await isar.habitantes.get(widget.habitante.id);
-    
+    if (!_repoInicializado || _repo == null || _vinculacionRepo == null) return;
+    final habitante = await _repo!.getHabitanteByCedula(widget.habitante.cedula);
+
     if (habitante != null) {
-      // Cargar relaciones
-      await habitante.consejoComunal.load();
-      await habitante.clap.load();
-      await habitante.jefeDeFamilia.load();
-      
-      // Cargar vinculaciones
+      try {
+        await habitante.consejoComunal.load();
+        await habitante.clap.load();
+        await habitante.jefeDeFamilia.load();
+      } catch (_) {}
       final vinculaciones = await _vinculacionRepo!.getVinculacionesPorHabitante(habitante.id);
-      
-      setState(() {
-        _habitanteCompleto = habitante;
-        _vinculaciones = vinculaciones;
-        _isLoading = false;
-      });
+
+      if (mounted) {
+        setState(() {
+          _habitanteCompleto = habitante;
+          _vinculaciones = vinculaciones;
+          _isLoading = false;
+        });
+      }
     } else {
-      setState(() {
-        _habitanteCompleto = widget.habitante;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _habitanteCompleto = widget.habitante;
+          _isLoading = false;
+        });
+      }
     }
   }
 

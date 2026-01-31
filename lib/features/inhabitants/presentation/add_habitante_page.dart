@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../models/models.dart';
-import '../data/repositories/habitante_repository.dart';
-import '../../../../database/db_helper.dart';
-import 'package:isar/isar.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/habitante_repository.dart';
+import '../../../../core/contracts/comuna_repository.dart';
+import '../../../../core/contracts/consejo_repository.dart';
+import '../../../../core/contracts/clap_repository.dart';
+import 'package:isar/isar.dart';
 
 class AddHabitantePage extends StatefulWidget {
   final Habitante? habitanteParaEditar;
@@ -21,23 +24,50 @@ class AddHabitantePage extends StatefulWidget {
 class _AddHabitantePageState extends State<AddHabitantePage> {
   final _formKey = GlobalKey<FormState>();
   HabitanteRepository? _habitanteRepo;
+  ComunaRepository? _comunaRepo;
+  ConsejoRepository? _consejoRepo;
+  ClapRepository? _clapRepo;
   bool _repoInicializado = false;
 
   @override
   void initState() {
     super.initState();
-    _cargarRepositorio();
-    _cargarListas();
     _cedulaNumeroController.addListener(_onCedulaChanged);
-    if (widget.habitanteParaEditar != null) {
-      _cargarDatosParaEditar();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_repoInicializado) {
+      final config = AppConfigScope.of(context);
+      _habitanteRepo = config.habitanteRepository;
+      _comunaRepo = config.comunaRepository;
+      _consejoRepo = config.consejoRepository;
+      _clapRepo = config.clapRepository;
+      _repoInicializado = true;
+      _cargarListas();
+      if (widget.habitanteParaEditar != null) {
+        _cargarDatosParaEditar();
+      }
     }
+  }
+
+  Future<void> _cargarRepositorio() async {
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
+    final config = AppConfigScope.of(context);
+    setState(() {
+      _habitanteRepo = config.habitanteRepository;
+      _comunaRepo = config.comunaRepository;
+      _consejoRepo = config.consejoRepository;
+      _clapRepo = config.clapRepository;
+      _repoInicializado = true;
+    });
   }
 
   Future<void> _cargarDatosParaEditar() async {
     final h = widget.habitanteParaEditar!;
-    final isar = await DbHelper().db;
-    final habitanteCompleto = await isar.habitantes.get(h.id);
+    final habitanteCompleto = await _habitanteRepo?.getHabitanteByCedula(h.cedula);
     
     if (habitanteCompleto != null) {
       // Cargar relaciones
@@ -102,15 +132,6 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
     }
   }
 
-  Future<void> _cargarRepositorio() async {
-    final isar = await DbHelper().db;
-    if (!mounted) return;
-    setState(() {
-      _habitanteRepo = HabitanteRepository(isar);
-      _repoInicializado = true;
-    });
-  }
-
   // Control de pasos del wizard
   int _currentStep = 0;
   final int _totalSteps = 3;
@@ -158,10 +179,10 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
 
 
   Future<void> _cargarListas() async {
-    final isar = await DbHelper().db;
-    _comunas = await isar.comunas.where().findAll();
-    _consejosComunales = await isar.consejoComunals.where().findAll();
-    _claps = await isar.claps.where().findAll();
+    if (_comunaRepo == null || _consejoRepo == null || _clapRepo == null) return;
+    _comunas = await _comunaRepo!.getAllComunas();
+    _consejosComunales = await _consejoRepo!.getAllConsejos();
+    _claps = await _clapRepo!.obtenerTodos();
     await _filtrarLocalizaciones();
     if (mounted) setState(() {});
   }
@@ -319,8 +340,7 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
             return;
           }
           // Verificar si el jefe está en local también
-          final isar = await DbHelper().db;
-          final jefeLocal = await isar.habitantes.filter().cedulaEqualTo(cedulaInt).findFirst();
+          final jefeLocal = await _habitanteRepo?.getHabitanteByCedula(cedulaInt);
           if (jefeLocal == null) {
             // Jefe está en la nube pero no en local
             setState(() {
@@ -561,8 +581,7 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
       } else {
         // Asignar el jefe encontrado
         if (_jefeEncontrado != null) {
-          final isar = await DbHelper().db;
-          final jefeCompleto = await isar.habitantes.filter().cedulaEqualTo(_jefeEncontrado!.cedula).findFirst();
+          final jefeCompleto = await _habitanteRepo?.getHabitanteByCedula(_jefeEncontrado!.cedula);
           if (jefeCompleto != null) {
             h.jefeDeFamilia.value = jefeCompleto;
           } else {
@@ -573,10 +592,6 @@ class _AddHabitantePageState extends State<AddHabitantePage> {
         }
       }
 
-      if (!_repoInicializado || _habitanteRepo == null) {
-        await _cargarRepositorio();
-      }
-      
       // Si estamos editando, usar actualizarHabitante y marcar como pendiente
       if (habitanteParaActualizar != null) {
         h.isSynced = false; // Marcar como pendiente para sincronizar cambios

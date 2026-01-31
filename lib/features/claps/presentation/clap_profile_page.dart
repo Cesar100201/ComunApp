@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../database/db_helper.dart';
-import '../data/repositories/clap_repository.dart';
-import '../../inhabitants/data/repositories/habitante_repository.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/clap_repository.dart';
+import '../../../../core/contracts/habitante_repository.dart';
 
 class ClapProfilePage extends StatefulWidget {
   final Clap clap;
@@ -23,7 +23,7 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
   bool _isEditing = false;
   bool _isSaving = false;
   
-  late ClapRepository _repo;
+  ClapRepository? _repo;
   HabitanteRepository? _habitanteRepo;
   bool _repoInicializado = false;
   
@@ -35,24 +35,21 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
   bool _isBuscandoJefe = false;
 
   @override
-  void initState() {
-    super.initState();
-    _inicializarRepositorios();
-  }
-
-  Future<void> _inicializarRepositorios() async {
-    final isar = await DbHelper().db;
-    _repo = ClapRepository();
-    setState(() {
-      _habitanteRepo = HabitanteRepository(isar);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_repoInicializado) {
+      final config = AppConfigScope.of(context);
+      _repo = config.clapRepository;
+      _habitanteRepo = config.habitanteRepository;
       _repoInicializado = true;
-    });
-    await _cargarDatosCompletos();
+      _cargarDatosCompletos();
+    }
   }
 
   Future<void> _cargarDatosCompletos() async {
-    final isar = await DbHelper().db;
-    final clap = await isar.claps.get(widget.clap.id);
+    final repo = _repo;
+    if (repo == null) return;
+    final clap = await repo.buscarPorId(widget.clap.id);
     
     if (clap != null) {
       await clap.jefeComunidad.load();
@@ -104,11 +101,17 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
     setState(() => _isBuscandoJefe = true);
 
     try {
-      if (!_repoInicializado || _habitanteRepo == null) {
-        await _inicializarRepositorios();
+      final habitanteRepo = _habitanteRepo;
+      if (habitanteRepo == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Configuración no disponible")),
+          );
+        }
+        setState(() => _isBuscandoJefe = false);
+        return;
       }
-      
-      final habitante = await _habitanteRepo!.getHabitanteByCedula(cedulaInt);
+      final habitante = await habitanteRepo.getHabitanteByCedula(cedulaInt);
       setState(() {
         _jefeEncontrado = habitante;
         _isBuscandoJefe = false;
@@ -138,15 +141,17 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
   Future<void> _guardarCambios() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final repo = _repo;
+    if (repo == null) return;
+
     setState(() => _isSaving = true);
     try {
-      final isar = await DbHelper().db;
-      final clapActualizado = await isar.claps.get(widget.clap.id);
+      final clapActualizado = await repo.buscarPorId(widget.clap.id);
       
       if (clapActualizado != null) {
         clapActualizado.nombreClap = _nombreClapController.text.trim();
         clapActualizado.jefeComunidad.value = _jefeEncontrado;
-        await _repo.actualizarClap(clapActualizado);
+        await repo.actualizarClap(clapActualizado);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -197,11 +202,12 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
 
     if (confirmacion == true) {
       try {
-        final isar = await DbHelper().db;
-        final clap = await isar.claps.get(widget.clap.id);
+        final repo = _repo;
+        if (repo == null) return;
         
+        final clap = await repo.buscarPorId(widget.clap.id);
         if (clap != null) {
-          await _repo.eliminarClap(clap.id);
+          await repo.eliminarClap(clap.id);
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

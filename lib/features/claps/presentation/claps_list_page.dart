@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../data/repositories/clap_repository.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/clap_repository.dart';
 import 'add_clap_page.dart';
 import 'clap_profile_page.dart';
 
@@ -13,30 +14,28 @@ class ClapsListPage extends StatefulWidget {
 }
 
 class _ClapsListPageState extends State<ClapsListPage> {
-  final _repo = ClapRepository();
+  ClapRepository? _repo;
   List<Clap> _claps = [];
   bool _isLoading = true;
   bool _repoInicializado = false;
 
   @override
-  void initState() {
-    super.initState();
-    _inicializarRepositorio();
-  }
-
-  Future<void> _inicializarRepositorio() async {
-    if (!mounted) return;
-    setState(() {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_repoInicializado) {
+      _repo = AppConfigScope.of(context).clapRepository;
       _repoInicializado = true;
-    });
-    _cargarDatos();
+      _cargarDatos();
+    }
   }
 
   Future<void> _cargarDatos() async {
-    if (!_repoInicializado) {
-      await _inicializarRepositorio();
+    final repo = _repo;
+    if (repo == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
     }
-    final datos = await _repo.obtenerTodos();
+    final datos = await repo.obtenerTodos();
     // Cargar relaciones
     for (var c in datos) {
       await c.jefeComunidad.load();

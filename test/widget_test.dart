@@ -8,12 +8,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:goblafria/main.dart';
+import 'package:goblafria/app.dart';
 
 void main() {
   testWidgets('App builds successfully', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const GobLaFriaApp());
+    await tester.pumpWidget(const GobLaFriaApp(firebaseAvailable: false));
 
     // Verify that the app builds without errors
     expect(find.byType(MaterialApp), findsOneWidget);

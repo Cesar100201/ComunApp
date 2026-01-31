@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../data/repositories/clap_repository.dart';
-import '../../inhabitants/data/repositories/habitante_repository.dart';
-import '../../../../database/db_helper.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/clap_repository.dart';
+import '../../../../core/contracts/habitante_repository.dart';
 
 class AddClapPage extends StatefulWidget {
   const AddClapPage({super.key});
@@ -14,21 +14,28 @@ class AddClapPage extends StatefulWidget {
 
 class _AddClapPageState extends State<AddClapPage> {
   final _formKey = GlobalKey<FormState>();
-  final _repo = ClapRepository();
+  ClapRepository? _repo;
   HabitanteRepository? _habitanteRepo;
   bool _repoInicializado = false;
 
   @override
-  void initState() {
-    super.initState();
-    _inicializarRepositorio();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_repoInicializado) {
+      final config = AppConfigScope.of(context);
+      _repo = config.clapRepository;
+      _habitanteRepo = config.habitanteRepository;
+      _repoInicializado = true;
+    }
   }
 
   Future<void> _inicializarRepositorio() async {
-    final isar = await DbHelper().db;
+    await Future.delayed(Duration.zero);
     if (!mounted) return;
+    final config = AppConfigScope.of(context);
     setState(() {
-      _habitanteRepo = HabitanteRepository(isar);
+      _repo = config.clapRepository;
+      _habitanteRepo = config.habitanteRepository;
       _repoInicializado = true;
     });
   }
@@ -109,7 +116,16 @@ class _AddClapPageState extends State<AddClapPage> {
         clap.jefeComunidad.value = _jefeEncontrado;
       }
 
-      await _repo.guardarClap(clap);
+      final repo = _repo;
+      if (repo == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Configuración no disponible")),
+          );
+        }
+        return;
+      }
+      await repo.guardarClap(clap);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

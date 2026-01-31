@@ -5,7 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/notification_service.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/notification_service.dart';
 import '../data/services/bulk_upload_comunas_service.dart';
 
 class BulkUploadComunasPage extends StatefulWidget {
@@ -203,7 +204,7 @@ class _BulkUploadComunasPageState extends State<BulkUploadComunasPage> {
   }
 
   Future<void> _procesarExcel(File file) async {
-    final notificationService = NotificationService();
+    final notificationService = AppConfigScope.of(context).notificationService;
 
     if (!mounted) return;
     setState(() {

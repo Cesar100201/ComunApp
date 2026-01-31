@@ -1,7 +1,8 @@
 import 'package:isar/isar.dart';
 import '../../../../models/models.dart';
+import '../../../../core/contracts/comuna_repository.dart' as contract;
 
-class ComunaRepository {
+class ComunaRepository implements contract.ComunaRepository {
   final Isar _isar;
 
   ComunaRepository(this._isar);

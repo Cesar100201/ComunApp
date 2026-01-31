@@ -1,7 +1,8 @@
 import 'package:isar/isar.dart';
 import '../../../../models/models.dart';
+import '../../../../core/contracts/vinculacion_repository.dart' as contract;
 
-class VinculacionRepository {
+class VinculacionRepository implements contract.VinculacionRepository {
   final Isar _isar;
 
   VinculacionRepository(this._isar);

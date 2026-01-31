@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
-import '../data/repositories/habitante_repository.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/app_config.dart';
+import '../../../../core/contracts/habitante_repository.dart';
 import 'add_habitante_page.dart';
 import 'habitante_profile_page.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../database/db_helper.dart';
 
 class HabitantesListPage extends StatefulWidget {
   const HabitantesListPage({super.key});
@@ -27,14 +27,22 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
   @override
   void initState() {
     super.initState();
-    _inicializarRepositorio();
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_repoInicializado) {
+      _repo = AppConfigScope.of(context).habitanteRepository;
+      _repoInicializado = true;
+      _cargarPrimeraPagina();
+    }
   }
 
   @override
   void didUpdateWidget(HabitantesListPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Recargar cuando el widget se actualiza
     if (_repoInicializado && _repo != null) {
       _cargarPrimeraPagina();
     }
@@ -55,24 +63,9 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
     }
   }
 
-  Future<void> _inicializarRepositorio() async {
-    final isar = await DbHelper().db;
-    final repo = HabitanteRepository(isar);
-    final total = await repo.contar();
-    setState(() {
-      _repo = repo;
-      _repoInicializado = true;
-      _totalHabitantes = total;
-    });
-    _cargarPrimeraPagina();
-  }
-
   /// Carga la primera página (sustituye la lista). Usar al abrir y al volver de Add/Carga masiva.
   Future<void> _cargarPrimeraPagina() async {
-    if (!_repoInicializado || _repo == null) {
-      await _inicializarRepositorio();
-      return;
-    }
+    if (!_repoInicializado || _repo == null) return;
     setState(() => _isLoading = true);
     final datos = await _repo!.obtenerPaginado(0, _pageSize);
     final total = await _repo!.contar();

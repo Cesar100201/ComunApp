@@ -1,51 +1,55 @@
 import 'package:isar/isar.dart';
-import '../../../../database/db_helper.dart';
 import '../../../../models/models.dart';
+import '../../../../core/contracts/clap_repository.dart' as contract;
 
-class ClapRepository {
+class ClapRepository implements contract.ClapRepository {
+  final Isar _isar;
+
+  ClapRepository(this._isar);
+
+  @override
   Future<void> guardarClap(Clap clap) async {
-    final isar = await DbHelper().db;
-    await isar.writeTxn(() async {
-      await isar.claps.put(clap);
+    await _isar.writeTxn(() async {
+      await _isar.claps.put(clap);
       if (clap.jefeComunidad.value != null) {
         await clap.jefeComunidad.save();
       }
     });
   }
 
+  @override
   Future<List<Clap>> obtenerTodos() async {
-    final isar = await DbHelper().db;
-    return await isar.claps
+    return await _isar.claps
         .filter()
         .isDeletedEqualTo(false)
         .findAll();
   }
 
+  @override
   Future<void> actualizarClap(Clap clap) async {
-    final isar = await DbHelper().db;
-    await isar.writeTxn(() async {
+    await _isar.writeTxn(() async {
       clap.isSynced = false;
-      await isar.claps.put(clap);
+      await _isar.claps.put(clap);
       if (clap.jefeComunidad.value != null) {
         await clap.jefeComunidad.save();
       }
     });
   }
 
+  @override
   Future<void> eliminarClap(Id id) async {
-    final isar = await DbHelper().db;
-    await isar.writeTxn(() async {
-      final clap = await isar.claps.get(id);
+    await _isar.writeTxn(() async {
+      final clap = await _isar.claps.get(id);
       if (clap != null) {
         clap.isDeleted = true;
         clap.isSynced = false;
-        await isar.claps.put(clap);
+        await _isar.claps.put(clap);
       }
     });
   }
 
+  @override
   Future<Clap?> buscarPorId(Id id) async {
-    final isar = await DbHelper().db;
-    return await isar.claps.get(id);
+    return await _isar.claps.get(id);
   }
 }

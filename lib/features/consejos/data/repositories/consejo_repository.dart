@@ -1,7 +1,8 @@
 import 'package:isar/isar.dart';
 import '../../../../models/models.dart';
+import '../../../../core/contracts/consejo_repository.dart' as contract;
 
-class ConsejoRepository {
+class ConsejoRepository implements contract.ConsejoRepository {
   final Isar _isar;
 
   ConsejoRepository(this._isar);
