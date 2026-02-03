@@ -6,6 +6,7 @@ import 'register_page.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/utils/constants.dart';
+import '../../../../core/utils/logger.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -30,7 +31,11 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final googleSignIn = GoogleSignIn(
+        serverClientId:
+            '753488187722-tbqv49ihnfcc8gtgte590gtb5g2i9sml.apps.googleusercontent.com',
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         if (mounted) setState(() => _isLoading = false);
         return;
@@ -38,17 +43,38 @@ class _LoginPageState extends State<LoginPage> {
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+
+      if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
+        AppLogger.warning('Google Sign-In: idToken es null o vacío');
+        if (mounted) {
+          _mostrarError(
+            'Google no devolvió el token. Verifique que el inicio con Google esté habilitado en Firebase.',
+          );
+        }
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
-      _navegarHome();
-    } catch (e) {
-      _mostrarError("Error de conexión con Google: Intente nuevamente.");
+      if (mounted) _navegarHome();
+    } on FirebaseAuthException catch (e, stackTrace) {
+      AppLogger.error('Google Sign-In / Firebase Auth', e, stackTrace);
+      final mensaje = e.message ?? e.code;
+      if (mounted) _mostrarError('Google: $mensaje');
+    } catch (e, stackTrace) {
+      AppLogger.error('Error en inicio de sesión con Google', e, stackTrace);
+      if (mounted) {
+        _mostrarError(
+          'Error con Google: ${e.toString().length > 80 ? '${e.toString().substring(0, 80)}...' : e.toString()}',
+        );
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false); // Desactiva carga
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

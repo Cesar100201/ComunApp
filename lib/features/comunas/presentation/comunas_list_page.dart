@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../data/repositories/comuna_repository.dart';
 import 'add_comuna_page.dart';
 import 'bulk_upload_comunas_page.dart';
+import 'comuna_consejos_page.dart';
 import 'comuna_profile_page.dart';
 
 class ComunasListPage extends StatefulWidget {
@@ -125,7 +126,7 @@ class _ComunasListPageState extends State<ComunasListPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ComunaProfilePage(comuna: c),
+              builder: (context) => ComunaConsejosPage(comuna: c),
             ),
           );
           if (result == true) {
