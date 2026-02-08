@@ -13,11 +13,18 @@ class NotificationService {
 
   /// ID constante para la notificación de progreso de carga
   static const int progressNotificationId = 1001;
-  
+
   /// ID constante para la notificación de finalización
   static const int completionNotificationId = 1002;
 
-  /// Inicializa el servicio de notificaciones
+  /// IDs para notificaciones de sincronización (persistentes, no eliminables)
+  static const int syncProgressNotificationId = 2001;
+  static const int syncCompleteNotificationId = 2002;
+  static const int syncErrorNotificationId = 2003;
+  static const String _syncChannelId = 'sync_progress';
+  static const String _syncChannelName = 'Sincronización';
+
+  /// Inicializa el servicio de notificaciones y solicita permiso en Android 13+.
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -38,21 +45,37 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Crear canal para notificaciones de progreso (Android)
+    // Crear canales y solicitar permiso de notificaciones (Android)
     if (Platform.isAndroid) {
-      const androidChannel = AndroidNotificationChannel(
-        'bulk_upload_progress', // id
-        'Carga Masiva de Datos', // nombre
-        description: 'Notificaciones del progreso de carga masiva de habitantes',
+      // Android 13+ (API 33): hay que pedir permiso para que se vean las notificaciones
+      await _notifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+      const bulkChannel = AndroidNotificationChannel(
+        'bulk_upload_progress',
+        'Carga Masiva de Datos',
+        description: 'Progreso de carga masiva de habitantes',
         importance: Importance.high,
         playSound: false,
         enableVibration: false,
         showBadge: false,
       );
-
       await _notifications
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(androidChannel);
+          ?.createNotificationChannel(bulkChannel);
+
+      const syncChannel = AndroidNotificationChannel(
+        _syncChannelId,
+        _syncChannelName,
+        description: 'Progreso de sincronización con la nube',
+        importance: Importance.defaultImportance,
+        playSound: false,
+        enableVibration: false,
+        showBadge: false,
+      );
+      await _notifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(syncChannel);
     }
 
     _initialized = true;
@@ -168,5 +191,137 @@ class NotificationService {
   /// Cancela todas las notificaciones
   Future<void> cancelAll() async {
     await _notifications.cancelAll();
+  }
+
+  // ========== Notificaciones de sincronización (persistentes, no eliminables) ==========
+
+  /// Asegura que el servicio esté listo y con permiso (Android 13+). Llamar antes de mostrar la primera notificación.
+  Future<void> ensureReady() async {
+    if (!_initialized) await initialize();
+    if (Platform.isAndroid) {
+      await _notifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
+  }
+
+  /// Muestra la notificación de progreso de sincronización (fija en barra, no se puede deslizar).
+  /// [progress] 0-100.
+  Future<void> showSyncProgressNotification({
+    required int progress,
+    required String stepLabel,
+    int subidos = 0,
+    int descargados = 0,
+  }) async {
+    await ensureReady();
+
+    final body = stepLabel;
+    final detail = (subidos > 0 || descargados > 0)
+        ? 'Subidos: $subidos · Descargados: $descargados'
+        : null;
+    final fullBody = detail != null ? '$body\n$detail' : body;
+
+    final androidDetails = AndroidNotificationDetails(
+      _syncChannelId,
+      _syncChannelName,
+      channelDescription: 'Progreso de sincronización',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      ongoing: true,
+      autoCancel: false,
+      showProgress: true,
+      maxProgress: 100,
+      progress: progress.clamp(0, 100),
+      onlyAlertOnce: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: false,
+      presentBadge: true,
+      presentSound: false,
+    );
+
+    await _notifications.show(
+      syncProgressNotificationId,
+      'Sincronizando datos',
+      fullBody,
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+    );
+  }
+
+  /// Oculta la notificación de progreso y muestra la de finalización (ya se puede eliminar).
+  Future<void> showSyncCompleteNotification({
+    required int subidos,
+    required int descargados,
+  }) async {
+    await ensureReady();
+    await _notifications.cancel(syncProgressNotificationId);
+
+    final title = (subidos > 0 || descargados > 0)
+        ? 'Sincronización completada'
+        : 'Todo está al día';
+    final body = (subidos > 0 || descargados > 0)
+        ? 'Subidos: $subidos · Descargados: $descargados'
+        : 'Datos local y nube sincronizados';
+
+    final androidDetails = AndroidNotificationDetails(
+      _syncChannelId,
+      _syncChannelName,
+      channelDescription: 'Resultado de sincronización',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      ongoing: false,
+      autoCancel: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    await _notifications.show(
+      syncCompleteNotificationId,
+      title,
+      body,
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+    );
+  }
+
+  /// Oculta el progreso y muestra notificación de error (se puede eliminar).
+  Future<void> showSyncErrorNotification(String message) async {
+    await ensureReady();
+    await _notifications.cancel(syncProgressNotificationId);
+
+    final androidDetails = AndroidNotificationDetails(
+      _syncChannelId,
+      _syncChannelName,
+      channelDescription: 'Errores de sincronización',
+      importance: Importance.high,
+      priority: Priority.high,
+      ongoing: false,
+      autoCancel: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    await _notifications.show(
+      syncErrorNotificationId,
+      'Error de sincronización',
+      message,
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+    );
+  }
+
+  /// Cancela solo la notificación de progreso de sincronización.
+  Future<void> cancelSyncProgressNotification() async {
+    await _notifications.cancel(syncProgressNotificationId);
   }
 }

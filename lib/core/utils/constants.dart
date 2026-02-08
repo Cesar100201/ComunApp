@@ -9,8 +9,10 @@ class AppConstants {
   static const Duration networkTimeout = Duration(seconds: 30);
   static const Duration syncTimeout = Duration(minutes: 5);
 
-  // Límites de paginación
+  // Límites de paginación (Firestore permite hasta 500 por request)
   static const int defaultPageSize = 50;
+  /// Tamaño de página para descarga desde nube: más grande = menos round-trips, más rápido.
+  static const int downloadPageSize = 500;
   static const int maxPageSize = 500;
 
   // Intervalos de reporte de progreso

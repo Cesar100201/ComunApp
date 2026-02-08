@@ -282,3 +282,26 @@ class Reporte implements Syncable {
   @Index()
   bool isDeleted = false;
 }
+
+// TABLA: EXTRANJEROS (registro de extranjeros con cédula colombiana)
+@collection
+class Extranjero implements Syncable {
+  Id id = Isar.autoIncrement;
+
+  late String nombreCompleto;
+  @Index(unique: true)
+  late int cedulaColombiana;
+  late String telefono;
+  String? direccion;
+  String? email;
+  late bool esNacionalizado;
+  int? cedulaVenezolana;
+  late String departamento;
+  late String municipio;
+
+  @Index()
+  bool isSynced = false;
+
+  @Index()
+  bool isDeleted = false;
+}

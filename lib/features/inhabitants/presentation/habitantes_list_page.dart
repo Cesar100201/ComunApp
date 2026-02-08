@@ -3,6 +3,7 @@ import '../../../../models/models.dart';
 import '../data/repositories/habitante_repository.dart';
 import 'add_habitante_page.dart';
 import 'habitante_profile_page.dart';
+import 'search_habitante_page.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
 
@@ -225,6 +226,16 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchHabitantePage()),
+              );
+            },
+            tooltip: 'Buscar habitante',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {

@@ -4,13 +4,134 @@ import '../../local/presentation/local_menu_page.dart';
 import '../../registros/presentation/registros_menu_page.dart';
 import '../../solicitudes/presentation/solicitudes_menu_page.dart';
 import '../../reportes/presentation/reportes_main_page.dart';
-import '../../../../core/services/sync_service.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/sync_service.dart' show SyncService, SyncProgress;
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/constants.dart' show QuotaExceededException;
 import '../../../../main.dart' show firebaseInitialized;
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
+
+  /// Inicia la sincronización en segundo plano. El progreso se muestra como
+  /// notificación fija (no eliminable) en la barra de notificaciones.
+  Future<void> _startSyncInBackground(BuildContext context) async {
+    final notifications = NotificationService();
+    try {
+      await notifications.ensureReady();
+      await notifications.showSyncProgressNotification(
+        progress: 0,
+        stepLabel: 'Iniciando sincronización...',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pueden mostrar notificaciones. Active las notificaciones en ajustes.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    final servicio = SyncService();
+    servicio.sincronizarTodo(
+      onProgress: (SyncProgress p) {
+        final percent = (p.progress * 100).round().clamp(0, 100);
+        notifications.showSyncProgressNotification(
+          progress: percent,
+          stepLabel: p.stepLabel,
+          subidos: p.subidos,
+          descargados: p.descargados,
+        );
+      },
+    ).then((resultado) async {
+      final subidos = resultado['subidos'] ?? 0;
+      final descargados = resultado['descargados'] ?? 0;
+      await notifications.showSyncCompleteNotification(
+        subidos: subidos,
+        descargados: descargados,
+      );
+      if (context.mounted) {
+        if (subidos > 0 || descargados > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "✅ Sincronización completa: $subidos subidos, $descargados descargados.",
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("👍 Todo está al día. Datos sincronizados."),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }).catchError((Object e, StackTrace _) async {
+      await notifications.showSyncErrorNotification(
+        e is QuotaExceededException
+            ? 'Cuota de Firebase excedida. Intente mañana.'
+            : e.toString(),
+      );
+      if (context.mounted) {
+        if (e is QuotaExceededException) {
+          final q = e as QuotaExceededException;
+          showDialog(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('Cuota de Firebase Excedida')),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Se ha alcanzado el límite diario de escrituras en Firebase.',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 16),
+                  if (q.registrosSubidos != null)
+                    Text('✓ Subidos: ${q.registrosSubidos}', style: TextStyle(color: AppColors.success)),
+                  if (q.registrosPendientes != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text('⏳ Pendientes: ${q.registrosPendientes}', style: TextStyle(color: AppColors.warning)),
+                    ),
+                  const SizedBox(height: 16),
+                  const Text('• La cuota se reinicia cada 24 h\n• Intente sincronizar mañana'),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('ENTENDIDO'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("❌ Error: ${e.toString()}"),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    });
+  }
 
   Future<void> _logout(BuildContext context) async {
     // Verificar si Firebase está disponible
@@ -178,139 +299,8 @@ class HomePage extends StatelessWidget {
             icon: Icons.cloud_upload_rounded,
             color: AppColors.primaryDark,
             onTap: () async {
-              // Mostramos diálogo de progreso
               if (!context.mounted) return;
-              
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text("Sincronizando datos..."),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-
-              try {
-                final servicio = SyncService();
-                final resultado = await servicio.sincronizarTodo();
-                final subidos = resultado['subidos'] ?? 0;
-                final descargados = resultado['descargados'] ?? 0;
-
-                if (context.mounted) {
-                  Navigator.pop(context); // Cerrar diálogo de progreso
-                  
-                  if (subidos > 0 || descargados > 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          "✅ Sincronización completa:\n"
-                          "• $subidos registro(s) subido(s) a la nube\n"
-                          "• $descargados registro(s) descargado(s) desde la nube",
-                        ),
-                        backgroundColor: AppColors.success,
-                        duration: const Duration(seconds: 5),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "👍 Todo está al día. Las bases de datos local y nube están sincronizadas.",
-                        ),
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  }
-                }
-              } on QuotaExceededException catch (e) {
-                // Error específico de cuota excedida
-                if (context.mounted) {
-                  Navigator.pop(context); // Cerrar diálogo de progreso
-                  
-                  // Mostrar diálogo informativo sobre la cuota
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) => AlertDialog(
-                      title: Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
-                          const SizedBox(width: 12),
-                          const Expanded(child: Text('Cuota de Firebase Excedida')),
-                        ],
-                      ),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Se ha alcanzado el límite diario de escrituras en Firebase.',
-                            style: TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryUltraLight,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (e.registrosSubidos != null)
-                                  Text('✓ Registros subidos: ${e.registrosSubidos}',
-                                      style: TextStyle(color: AppColors.success)),
-                                if (e.registrosPendientes != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text('⏳ Pendientes: ${e.registrosPendientes}',
-                                        style: TextStyle(color: AppColors.warning)),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            '¿Qué hacer?',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text('• La cuota se reinicia cada 24 horas'),
-                          const Text('• Los datos están guardados localmente'),
-                          const Text('• Intente sincronizar mañana'),
-                        ],
-                      ),
-                      actions: [
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text('ENTENDIDO'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  Navigator.pop(context); // Cerrar diálogo de progreso
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("❌ Error: ${e.toString()}"),
-                      backgroundColor: AppColors.error,
-                      duration: const Duration(seconds: 5),
-                    ),
-                  );
-                }
-              }
+              await _startSyncInBackground(context);
             },
           ),
         ],

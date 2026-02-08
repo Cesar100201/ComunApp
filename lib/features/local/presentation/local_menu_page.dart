@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
 import '../../../../models/models.dart';
 import '../../inhabitants/presentation/habitantes_list_page.dart';
+import '../../inhabitants/presentation/extranjeros_list_page.dart';
 import '../../comunas/presentation/comunas_list_page.dart';
 import '../../consejos/presentation/consejos_comunales_list_page.dart';
 import '../../organizations/presentation/organizaciones_list_page.dart';
@@ -187,6 +188,19 @@ class _LocalMenuPageState extends State<LocalMenuPage> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const HabitantesListPage()),
+            ),
+          ),
+
+          // LISTADO DE EXTRANJEROS
+          _buildActionCard(
+            context,
+            title: "Listado de Extranjeros",
+            subtitle: "Ver todos los extranjeros en la base de datos local",
+            icon: Icons.list_alt_rounded,
+            color: AppColors.info,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ExtranjerosListPage()),
             ),
           ),
 

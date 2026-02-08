@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'add_habitante_page.dart';
-import 'search_habitante_page.dart';
+import 'add_extranjero_page.dart';
 import 'bulk_upload_habitantes_page.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -26,17 +26,17 @@ class HabitantesMenuPage extends StatelessWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddHabitantePage())),
           ),
 
-          // TARJETA 2: BUSCAR
+          // TARJETA: REGISTRO DE EXTRANJEROS
           _buildActionCard(
             context,
-            title: "Buscar Habitante",
-            subtitle: "Localizar por Cédula de Identidad",
-            icon: Icons.search_rounded,
-            color: AppColors.warning,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchHabitantePage())),
+            title: "Registro de Extranjeros",
+            subtitle: "Inscribir extranjero con cédula colombiana (departamento y municipio)",
+            icon: Icons.public_rounded,
+            color: AppColors.primary,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddExtranjeroPage())),
           ),
 
-          // TARJETA 3: CARGA MASIVA
+          // TARJETA: CARGA MASIVA
           _buildActionCard(
             context,
             title: "Carga Masiva",

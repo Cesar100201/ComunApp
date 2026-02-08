@@ -61,6 +61,7 @@ class DbHelper {
             SolicitudSchema,
             BitacoraSchema,
             ReporteSchema,
+            ExtranjeroSchema,
           ],
           directory: dir.path,
           inspector: true,

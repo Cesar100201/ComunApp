@@ -8,6 +8,27 @@ import '../utils/logger.dart';
 import '../utils/constants.dart';
 import 'sync_helpers.dart';
 
+/// Estado de progreso de la sincronización para mostrar en UI.
+class SyncProgress {
+  final String phase;
+  final String stepLabel;
+  final int currentStep;
+  final int totalSteps;
+  final int subidos;
+  final int descargados;
+
+  const SyncProgress({
+    required this.phase,
+    required this.stepLabel,
+    required this.currentStep,
+    required this.totalSteps,
+    this.subidos = 0,
+    this.descargados = 0,
+  });
+
+  double get progress => totalSteps > 0 ? currentStep / totalSteps : 0.0;
+}
+
 /// Servicio de sincronización bidireccional entre Isar (local) y Firebase (nube).
 /// 
 /// Maneja la sincronización de todas las colecciones del sistema:
@@ -247,14 +268,25 @@ class SyncService {
   // API PÚBLICA
   // ============================================================================
 
+  static const int _totalSyncSteps = 11;
+
   /// Sincroniza todos los datos en orden lógico (BIDIRECCIONAL).
-  /// 
-  /// Primero sube cambios locales a la nube, luego descarga cambios de la nube.
-  /// Retorna un mapa con 'subidos' y 'descargados'.
-  /// 
-  /// Lanza [SyncException] si no hay conexión a internet.
-  /// Lanza [QuotaExceededException] si se excede la cuota de Firebase.
-  Future<Map<String, int>> sincronizarTodo() async {
+  ///
+  /// [onProgress] se invoca en cada paso para actualizar la barra de progreso.
+  Future<Map<String, int>> sincronizarTodo({
+    void Function(SyncProgress)? onProgress,
+  }) async {
+    final report = (String phase, String stepLabel, int step, {int subidos = 0, int descargados = 0}) {
+      onProgress?.call(SyncProgress(
+        phase: phase,
+        stepLabel: stepLabel,
+        currentStep: step,
+        totalSteps: _totalSyncSteps,
+        subidos: subidos,
+        descargados: descargados,
+      ));
+    };
+
     // 1. Verificar Internet
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) {
@@ -265,28 +297,48 @@ class SyncService {
     int totalDescargados = 0;
 
     try {
-      // 2. Subir cambios locales a la nube (tablas maestras primero)
       AppLogger.info('Iniciando sincronización - Subiendo cambios...');
-      
+      report('subiendo', 'Subiendo comunas...', 1);
+
       totalSubidos += await _syncHelper.uploadPending(_comunaConfig);
+      report('subiendo', 'Subiendo consejos comunales...', 2, subidos: totalSubidos);
       totalSubidos += await _syncHelper.uploadPending(_consejoConfig);
+      report('subiendo', 'Subiendo organizaciones...', 3, subidos: totalSubidos);
       totalSubidos += await _syncHelper.uploadPending(_organizacionConfig);
+      report('subiendo', 'Subiendo CLAPs...', 4, subidos: totalSubidos);
       totalSubidos += await _syncHelper.uploadPending(_clapConfig);
+      report('subiendo', 'Subiendo habitantes...', 5, subidos: totalSubidos);
       totalSubidos += await _syncHabitantes();
+      report('subiendo', 'Subiendo proyectos...', 6, subidos: totalSubidos);
       totalSubidos += await _syncHelper.uploadPending(_proyectoConfig);
+      report('subiendo', 'Subiendo solicitudes...', 7, subidos: totalSubidos);
       totalSubidos += await _syncSolicitudes();
+      report('subiendo', 'Subiendo bitácora...', 8, subidos: totalSubidos);
       totalSubidos += await _syncBitacora();
 
-      // 3. Descargar cambios de la nube al local (con paginación)
       AppLogger.info('Descargando cambios desde la nube...');
-      
-      totalDescargados += await _syncHelper.downloadWithPagination(_comunaConfig);
-      totalDescargados += await _syncHelper.downloadWithPagination(_consejoConfig);
-      totalDescargados += await _syncHelper.downloadWithPagination(_organizacionConfig);
-      totalDescargados += await _syncHelper.downloadWithPagination(_clapConfig);
-      totalDescargados += await _downloadHabitantes();
-      totalDescargados += await _syncHelper.downloadWithPagination(_proyectoConfig);
-      totalDescargados += await _downloadSolicitudes();
+      report('descargando', 'Descargando tablas maestras...', 9, subidos: totalSubidos);
+
+      final fase1 = await Future.wait([
+        _syncHelper.downloadWithPagination(_comunaConfig),
+        _syncHelper.downloadWithPagination(_organizacionConfig),
+        _syncHelper.downloadWithPagination(_proyectoConfig),
+      ]);
+      totalDescargados += fase1[0] + fase1[1] + fase1[2];
+      report('descargando', 'Descargando consejos y habitantes...', 10, subidos: totalSubidos, descargados: totalDescargados);
+
+      final fase2 = await Future.wait([
+        _syncHelper.downloadWithPagination(_consejoConfig),
+        _downloadHabitantes(),
+      ]);
+      totalDescargados += fase2[0] + fase2[1];
+      report('descargando', 'Descargando CLAPs y solicitudes...', 11, subidos: totalSubidos, descargados: totalDescargados);
+
+      final fase3 = await Future.wait([
+        _syncHelper.downloadWithPagination(_clapConfig),
+        _downloadSolicitudes(),
+      ]);
+      totalDescargados += fase3[0] + fase3[1];
 
       AppLogger.info('Sincronización completada: $totalSubidos subidos, $totalDescargados descargados');
     } catch (e, stackTrace) {
@@ -475,7 +527,7 @@ class SyncService {
     final isar = await DbHelper().db;
     int count = 0;
     DocumentSnapshot? lastDoc;
-    const pageSize = AppConstants.defaultPageSize;
+    const pageSize = AppConstants.downloadPageSize;
 
     try {
       while (true) {
@@ -490,6 +542,7 @@ class SyncService {
         final snapshot = await query.get().timeout(AppConstants.syncTimeout);
         if (snapshot.docs.isEmpty) break;
 
+        final batch = <Habitante>[];
         for (var doc in snapshot.docs) {
           try {
             final data = doc.data();
@@ -510,10 +563,10 @@ class SyncService {
             habitante.direccion = data['direccion'] as String? ?? '';
             habitante.fotoUrl = data['fotoUrl'] as String?;
             habitante.nivelUsuario = (data['nivelUsuario'] as num?)?.toInt() ?? 1;
-            
+
             final fechaNacTimestamp = data['fechaNacimiento'] as Timestamp?;
             habitante.fechaNacimiento = fechaNacTimestamp?.toDate() ?? AppConstants.defaultBirthDate;
-            
+
             habitante.genero = Genero.values.firstWhere(
               (g) => g.name == (data['genero'] as String? ?? 'Masculino'),
               orElse: () => Genero.Masculino,
@@ -528,12 +581,19 @@ class SyncService {
             );
             habitante.isSynced = true;
             habitante.isDeleted = false;
-
-            await isar.writeTxn(() => isar.habitantes.put(habitante));
-            count++;
+            batch.add(habitante);
           } catch (e) {
             AppLogger.warning('Error descargando habitante ${doc.id}: $e');
           }
+        }
+
+        if (batch.isNotEmpty) {
+          await isar.writeTxn(() async {
+            for (var h in batch) {
+              await isar.habitantes.put(h);
+            }
+          });
+          count += batch.length;
         }
 
         lastDoc = snapshot.docs.last;
@@ -652,7 +712,7 @@ class SyncService {
     final isar = await DbHelper().db;
     int count = 0;
     DocumentSnapshot? lastDoc;
-    const pageSize = AppConstants.defaultPageSize;
+    const pageSize = AppConstants.downloadPageSize;
 
     try {
       while (true) {
@@ -667,6 +727,7 @@ class SyncService {
         final snapshot = await query.get().timeout(AppConstants.networkTimeout);
         if (snapshot.docs.isEmpty) break;
 
+        final batch = <Solicitud>[];
         for (var doc in snapshot.docs) {
           try {
             final data = doc.data();
@@ -676,29 +737,28 @@ class SyncService {
             final local = await isar.solicituds.filter().idSolicitudEqualTo(idSolicitud).findFirst();
             if (local != null && !local.isSynced) continue;
 
-            // Buscar relaciones
             final comunaId = (data['comunaId'] as num?)?.toInt();
             final consejoComunalId = (data['consejoComunalId'] as num?)?.toInt();
             final ubchId = (data['ubchId'] as num?)?.toInt();
             final creadorCedula = (data['creadorCedula'] as num?)?.toInt();
 
             Comuna? comuna = comunaId != null ? await isar.comunas.get(comunaId) : null;
-            comuna ??= data['comunaNombre'] != null 
-                ? await isar.comunas.filter().nombreComunaEqualTo(data['comunaNombre'] as String).findFirst() 
+            comuna ??= data['comunaNombre'] != null
+                ? await isar.comunas.filter().nombreComunaEqualTo(data['comunaNombre'] as String).findFirst()
                 : null;
 
             ConsejoComunal? consejo = consejoComunalId != null ? await isar.consejoComunals.get(consejoComunalId) : null;
-            consejo ??= data['consejoComunalNombre'] != null 
-                ? await isar.consejoComunals.filter().nombreConsejoEqualTo(data['consejoComunalNombre'] as String).findFirst() 
+            consejo ??= data['consejoComunalNombre'] != null
+                ? await isar.consejoComunals.filter().nombreConsejoEqualTo(data['consejoComunalNombre'] as String).findFirst()
                 : null;
 
             Organizacion? ubch = ubchId != null ? await isar.organizacions.get(ubchId) : null;
-            ubch ??= data['ubchNombre'] != null 
-                ? await isar.organizacions.filter().nombreLargoEqualTo(data['ubchNombre'] as String).findFirst() 
+            ubch ??= data['ubchNombre'] != null
+                ? await isar.organizacions.filter().nombreLargoEqualTo(data['ubchNombre'] as String).findFirst()
                 : null;
 
-            Habitante? creador = creadorCedula != null 
-                ? await isar.habitantes.filter().cedulaEqualTo(creadorCedula).findFirst() 
+            Habitante? creador = creadorCedula != null
+                ? await isar.habitantes.filter().cedulaEqualTo(creadorCedula).findFirst()
                 : null;
 
             final solicitud = local ?? Solicitud();
@@ -720,18 +780,23 @@ class SyncService {
 
             solicitud.isSynced = true;
             solicitud.isDeleted = false;
-
-            await isar.writeTxn(() async {
-              await isar.solicituds.put(solicitud);
-              if (comuna != null) await solicitud.comuna.save();
-              if (consejo != null) await solicitud.consejoComunal.save();
-              if (ubch != null) await solicitud.ubch.save();
-              if (creador != null) await solicitud.creador.save();
-            });
-            count++;
+            batch.add(solicitud);
           } catch (e) {
             AppLogger.warning('Error descargando solicitud ${doc.id}: $e');
           }
+        }
+
+        if (batch.isNotEmpty) {
+          await isar.writeTxn(() async {
+            for (var s in batch) {
+              await isar.solicituds.put(s);
+              if (s.comuna.value != null) await s.comuna.save();
+              if (s.consejoComunal.value != null) await s.consejoComunal.save();
+              if (s.ubch.value != null) await s.ubch.save();
+              if (s.creador.value != null) await s.creador.save();
+            }
+          });
+          count += batch.length;
         }
 
         lastDoc = snapshot.docs.last;

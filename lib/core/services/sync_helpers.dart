@@ -123,12 +123,11 @@ class SyncHelper {
   }
 
   /// Descarga items de Firebase con paginación.
-  /// 
-  /// Usa paginación para evitar problemas de memoria con colecciones grandes.
-  /// Retorna el número de items descargados.
+  ///
+  /// Usa páginas grandes (500) y una sola transacción Isar por página para máxima velocidad.
   Future<int> downloadWithPagination<T extends Syncable>(
     SyncConfig<T> config, {
-    int pageSize = AppConstants.defaultPageSize,
+    int pageSize = AppConstants.downloadPageSize,
     Duration timeout = AppConstants.networkTimeout,
   }) async {
     final isar = await DbHelper().db;
@@ -137,7 +136,6 @@ class SyncHelper {
 
     try {
       while (true) {
-        // Construir query con paginación
         firestore.Query<Map<String, dynamic>> query = _firestore
             .collection(config.firebaseCollection)
             .limit(pageSize);
@@ -150,29 +148,34 @@ class SyncHelper {
 
         if (snapshot.docs.isEmpty) break;
 
+        // Procesar página: convertir todos los docs a items (en paralelo cuando sea posible)
+        final items = <T>[];
         for (var doc in snapshot.docs) {
           try {
             final item = await config.fromFirebaseDoc(isar, doc);
             if (item == null) continue;
-
             item.isSynced = true;
             item.isDeleted = false;
-
-            await isar.writeTxn(() async {
-              await config.saveItem(isar, item);
-              if (config.saveRelations != null) {
-                await config.saveRelations!(isar, item);
-              }
-            });
-            count++;
+            items.add(item);
           } catch (e) {
             AppLogger.warning('Error descargando ${config.firebaseCollection} ${doc.id}: $e');
           }
         }
 
-        lastDoc = snapshot.docs.last;
+        // Una sola transacción por página (mucho más rápido que una por documento)
+        if (items.isNotEmpty) {
+          await isar.writeTxn(() async {
+            for (var item in items) {
+              await config.saveItem(isar, item);
+              if (config.saveRelations != null) {
+                await config.saveRelations!(isar, item);
+              }
+            }
+          });
+          count += items.length;
+        }
 
-        // Si obtuvimos menos documentos que el límite, no hay más páginas
+        lastDoc = snapshot.docs.last;
         if (snapshot.docs.length < pageSize) break;
       }
     } catch (e) {
