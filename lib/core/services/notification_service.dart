@@ -151,7 +151,7 @@ class NotificationService {
         ? '$successCount de $total registros guardados. $errorCount errores.'
         : '$total registros guardados exitosamente';
 
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       'bulk_upload_progress',
       'Carga Masiva de Datos',
       channelDescription: 'Notificación de finalización',
@@ -161,7 +161,7 @@ class NotificationService {
       autoCancel: true,
       showProgress: false,
       icon: '@mipmap/ic_launcher',
-      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -170,7 +170,7 @@ class NotificationService {
       presentSound: true,
     );
 
-    final notificationDetails = NotificationDetails(
+    const notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -265,7 +265,7 @@ class NotificationService {
         ? 'Subidos: $subidos · Descargados: $descargados'
         : 'Datos local y nube sincronizados';
 
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       _syncChannelId,
       _syncChannelName,
       channelDescription: 'Resultado de sincronización',
@@ -286,7 +286,7 @@ class NotificationService {
       syncCompleteNotificationId,
       title,
       body,
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
   }
 
@@ -295,7 +295,7 @@ class NotificationService {
     await ensureReady();
     await _notifications.cancel(syncProgressNotificationId);
 
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       _syncChannelId,
       _syncChannelName,
       channelDescription: 'Errores de sincronización',
@@ -316,7 +316,7 @@ class NotificationService {
       syncErrorNotificationId,
       'Error de sincronización',
       message,
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
     );
   }
 

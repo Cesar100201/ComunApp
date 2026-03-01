@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/utils/constants.dart';
+import 'cedula_validation_flow_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -13,6 +14,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _cedulaController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
 
@@ -21,15 +23,23 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _cedulaController.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
-    // 1. Validaciones (igual que antes)
     if (_emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
-        _confirmPasswordController.text.isEmpty) {
+        _confirmPasswordController.text.isEmpty ||
+        _cedulaController.text.trim().isEmpty) {
       _mostrarError("Por favor completa todos los campos.");
+      return;
+    }
+
+    final cedulaRaw = _cedulaController.text.trim().replaceAll(RegExp(r'[^\d]'), '');
+    final cedula = int.tryParse(cedulaRaw);
+    if (cedula == null || cedula <= 0) {
+      _mostrarError("Ingrese un número de cédula válido.");
       return;
     }
 
@@ -47,33 +57,18 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Crear usuario en Firebase
       await _authService.registrarUsuario(
         _emailController.text,
         _passwordController.text,
       );
 
-      // Cerrar la sesión inmediatamente después del registro
-      await _authService.salir();
-
-      // Mensaje de éxito y volver al Login
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 10),
-              Text("Registro Exitoso!"),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CedulaValidationFlowPage(initialCedula: cedula),
         ),
       );
-
-      Navigator.pop(context);
     } on AuthException catch (e) {
       if (mounted) {
         _mostrarError(e.message);
@@ -156,6 +151,16 @@ class _RegisterPageState extends State<RegisterPage> {
                         decoration: const InputDecoration(
                           labelText: "Correo Institucional",
                           prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _cedulaController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: "Cédula",
+                          hintText: "Ej. 12345678",
+                          prefixIcon: Icon(Icons.badge_outlined),
                         ),
                       ),
                       const SizedBox(height: 20),

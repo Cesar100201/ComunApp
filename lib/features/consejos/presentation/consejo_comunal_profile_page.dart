@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/consejo_repository.dart';
 import 'edit_consejo_info_basica_page.dart';
@@ -11,13 +12,11 @@ import 'edit_consejo_vinculaciones_page.dart';
 class ConsejoComunalProfilePage extends StatefulWidget {
   final ConsejoComunal consejo;
 
-  const ConsejoComunalProfilePage({
-    super.key,
-    required this.consejo,
-  });
+  const ConsejoComunalProfilePage({super.key, required this.consejo});
 
   @override
-  State<ConsejoComunalProfilePage> createState() => _ConsejoComunalProfilePageState();
+  State<ConsejoComunalProfilePage> createState() =>
+      _ConsejoComunalProfilePageState();
 }
 
 class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
@@ -25,11 +24,16 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
   bool _isLoading = true;
   ConsejoRepository? _repo;
   bool _repoInicializado = false;
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorio();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _inicializarRepositorio() async {
@@ -47,11 +51,11 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
     }
     final isar = await DbHelper().db;
     final consejo = await isar.consejoComunals.get(widget.consejo.id);
-    
+
     if (consejo != null) {
       // Cargar relaciones
       await consejo.comuna.load();
-      
+
       setState(() {
         _consejoCompleto = consejo;
         _isLoading = false;
@@ -69,7 +73,9 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirmar Eliminación"),
-        content: const Text("¿Está seguro de que desea eliminar este Consejo Comunal?"),
+        content: const Text(
+          "¿Está seguro de que desea eliminar este Consejo Comunal?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -90,11 +96,11 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
           await _inicializarRepositorio();
         }
         await _repo!.eliminarConsejo(widget.consejo.id);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Consejo Comunal eliminado"),
+            const SnackBar(
+              content: Text("✅ Consejo Comunal eliminado"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -128,11 +134,12 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
       appBar: AppBar(
         title: const Text("Perfil del Consejo Comunal"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _eliminarConsejo,
-            tooltip: "Eliminar",
-          ),
+          if (_canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _eliminarConsejo,
+              tooltip: "Eliminar",
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -201,9 +208,9 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                   Text(
                     "Comunidades:",
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -211,7 +218,16 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                     runSpacing: 8,
                     children: c.comunidades.map((comunidad) {
                       return Chip(
-                        label: Text(comunidad),
+                        label: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width - 80,
+                          ),
+                          child: Text(
+                            comunidad,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
                         backgroundColor: AppColors.primaryUltraLight,
                       );
                     }).toList(),
@@ -230,7 +246,8 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditConsejoOrganizacionPage(consejo: c),
+                    builder: (context) =>
+                        EditConsejoOrganizacionPage(consejo: c),
                   ),
                 );
                 if (result == true) {
@@ -251,9 +268,9 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                       Text(
                         "Cargos (${c.cargos.length}):",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       ...c.cargos.map((cargo) {
@@ -264,7 +281,9 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                               Icon(
                                 cargo.esUnico ? Icons.person : Icons.groups,
                                 size: 18,
-                                color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                                color: cargo.esUnico
+                                    ? AppColors.warning
+                                    : AppColors.info,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -274,16 +293,25 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: (cargo.esUnico ? AppColors.warning : AppColors.info).withOpacity(0.1),
+                                  color:
+                                      (cargo.esUnico
+                                              ? AppColors.warning
+                                              : AppColors.info)
+                                          .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   cargo.esUnico ? "Único" : "Múltiple",
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                                    color: cargo.esUnico
+                                        ? AppColors.warning
+                                        : AppColors.info,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -307,7 +335,8 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditConsejoVinculacionesPage(consejo: c),
+                    builder: (context) =>
+                        EditConsejoVinculacionesPage(consejo: c),
                   ),
                 );
                 if (result == true) {
@@ -333,7 +362,9 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                 _buildInfoRow(
                   "Sincronización",
                   c.isSynced ? "Sincronizado" : "Pendiente",
-                  valueColor: c.isSynced ? AppColors.success : AppColors.warning,
+                  valueColor: c.isSynced
+                      ? AppColors.success
+                      : AppColors.warning,
                 ),
               ],
             ),
@@ -356,11 +387,7 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
           CircleAvatar(
             radius: 40,
             backgroundColor: Colors.white.withValues(alpha: 0.3),
-            child: const Icon(
-              Icons.groups,
-              size: 40,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.groups, size: 40, color: Colors.white),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -419,14 +446,18 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
                   child: Text(
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 if (onEdit != null)
                   IconButton(
-                    icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
+                    icon: const Icon(
+                      Icons.edit,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     onPressed: onEdit,
                     tooltip: "Editar",
                     padding: EdgeInsets.zero,
@@ -453,18 +484,18 @@ class _ConsejoComunalProfilePageState extends State<ConsejoComunalProfilePage> {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: valueColor ?? AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: valueColor ?? AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

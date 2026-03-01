@@ -61,8 +61,8 @@ class _AddClapPageState extends State<AddClapPage> {
     if (cedulaInt == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Cédula inválida"),
+          const SnackBar(
+            content: Text("Cédula inválida"),
             backgroundColor: AppColors.error,
           ),
         );
@@ -113,8 +113,8 @@ class _AddClapPageState extends State<AddClapPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("✅ CLAP registrado con éxito"),
+        const SnackBar(
+          content: Text("✅ CLAP registrado con éxito"),
           backgroundColor: AppColors.success,
         ),
       );
@@ -147,7 +147,7 @@ class _AddClapPageState extends State<AddClapPage> {
               Text(
                 "Datos del CLAP",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 24),
@@ -156,7 +156,7 @@ class _AddClapPageState extends State<AddClapPage> {
               Text(
                 "Jefe de Comunidad",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 12),
@@ -193,7 +193,7 @@ class _AddClapPageState extends State<AddClapPage> {
                 Card(
                   color: AppColors.success.withValues(alpha: 0.1),
                   child: ListTile(
-                    leading: Icon(Icons.check_circle, color: AppColors.success),
+                    leading: const Icon(Icons.check_circle, color: AppColors.success),
                     title: Text(
                       _jefeEncontrado!.nombreCompleto,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(

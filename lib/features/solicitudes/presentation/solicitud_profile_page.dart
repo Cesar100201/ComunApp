@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:goblafria/models/models.dart';
 import 'package:goblafria/core/theme/app_theme.dart';
+import 'package:goblafria/core/services/user_role_service.dart';
 import 'package:goblafria/database/db_helper.dart';
 import 'package:goblafria/features/solicitudes/data/repositories/solicitud_repository.dart';
 import 'package:goblafria/features/comunas/data/repositories/comuna_repository.dart';
@@ -46,11 +47,22 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
   List<Comuna> _comunas = [];
   List<ConsejoComunal> _consejosComunales = [];
   List<Organizacion> _ubchs = [];
+  bool _canDelete = false;
+  bool _canEdit = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorios();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) {
+        setState(() {
+        _canDelete = _roleService.canDelete(n);
+        _canEdit = _roleService.canAccessRegistros(n);
+      });
+      }
+    });
   }
 
   Future<void> _inicializarRepositorios() async {
@@ -189,8 +201,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCreador == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor, busque y seleccione un creador."),
+        const SnackBar(
+          content: Text("Por favor, busque y seleccione un creador."),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -223,8 +235,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Solicitud actualizada con éxito"),
+            const SnackBar(
+              content: Text("✅ Solicitud actualizada con éxito"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -274,8 +286,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Solicitud eliminada"),
+            const SnackBar(
+              content: Text("✅ Solicitud eliminada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -309,7 +321,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
       appBar: AppBar(
         title: const Text("Perfil de la Solicitud"),
         actions: [
-          if (!_isEditing)
+          if (!_isEditing && _canEdit)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () => setState(() => _isEditing = true),
@@ -324,7 +336,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
               },
               tooltip: "Cancelar",
             ),
-          if (!_isEditing)
+          if (!_isEditing && _canDelete)
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _eliminarSolicitud,
@@ -428,7 +440,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             DropdownButtonFormField<TipoSolicitud>(
-              value: _selectedTipoSolicitud,
+              initialValue: _selectedTipoSolicitud,
               decoration: const InputDecoration(
                 labelText: "Tipo de Solicitud *",
                 border: OutlineInputBorder(),
@@ -445,7 +457,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<Comuna>(
-              value: _selectedComuna,
+              initialValue: _selectedComuna,
               decoration: const InputDecoration(
                 labelText: "Comuna",
                 border: OutlineInputBorder(),
@@ -460,7 +472,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<ConsejoComunal>(
-              value: _getConsejoComunalFromList(_selectedConsejoComunal),
+              initialValue: _getConsejoComunalFromList(_selectedConsejoComunal),
               decoration: const InputDecoration(
                 labelText: "Consejo Comunal",
                 border: OutlineInputBorder(),
@@ -488,7 +500,7 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<Organizacion>(
-              value: _selectedUbch,
+              initialValue: _selectedUbch,
               decoration: const InputDecoration(
                 labelText: "UBCH",
                 border: OutlineInputBorder(),
@@ -526,8 +538,8 @@ class _SolicitudProfilePageState extends State<SolicitudProfilePage> {
                         _selectedCreador = habitante;
                         if (habitante == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text("Habitante no encontrado"),
+                            const SnackBar(
+                              content: Text("Habitante no encontrado"),
                               backgroundColor: AppColors.error,
                             ),
                           );

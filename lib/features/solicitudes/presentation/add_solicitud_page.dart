@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:goblafria/models/models.dart';
 import 'package:goblafria/core/theme/app_theme.dart';
 import 'package:goblafria/features/solicitudes/data/repositories/solicitud_repository.dart';
+import 'package:goblafria/features/solicitudes/presentation/bulk_upload_solicitudes_page.dart';
 import 'package:goblafria/features/comunas/data/repositories/comuna_repository.dart';
-import 'package:goblafria/features/organizaciones/data/repositories/organizacion_repository.dart';
+import 'package:goblafria/features/organizations/data/repositories/organizacion_repository.dart';
 import 'package:goblafria/features/inhabitants/data/repositories/habitante_repository.dart';
 import 'package:goblafria/database/db_helper.dart';
 
@@ -31,7 +32,7 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
   ConsejoComunal? _selectedConsejoComunal;
   Organizacion? _selectedUbch;
   Habitante? _selectedCreador;
-  TipoSolicitud _selectedTipoSolicitud = TipoSolicitud.Iluminacion;
+  final TipoSolicitud _selectedTipoSolicitud = TipoSolicitud.Iluminacion;
 
   bool _isSaving = false;
 
@@ -49,14 +50,16 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
     final isar = await DbHelper().db;
     _solicitudRepo = SolicitudRepository(isar);
     _comunaRepo = ComunaRepository(isar);
-    _organizacionRepo = OrganizacionRepository(isar);
+    _organizacionRepo = OrganizacionRepository();
     _habitanteRepo = HabitanteRepository(isar);
     _loadInitialData();
   }
 
   Future<void> _loadInitialData() async {
     _comunas = await _comunaRepo.getAllComunas();
-    _ubchs = await _organizacionRepo.getOrganizacionesByType(TipoOrganizacion.Politico);
+    _ubchs = await _organizacionRepo.getOrganizacionesByType(
+      TipoOrganizacion.Politico,
+    );
     if (mounted) setState(() {});
   }
 
@@ -64,11 +67,14 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
     if (!mounted) return;
     setState(() {
       _selectedComuna = newComuna;
-      _selectedConsejoComunal = null; // Resetear consejo comunal al cambiar comuna
+      _selectedConsejoComunal =
+          null; // Resetear consejo comunal al cambiar comuna
       _consejosComunales = []; // Limpiar lista de consejos
     });
     if (newComuna != null) {
-      _consejosComunales = await _comunaRepo.getConsejosComunalesByComunaId(newComuna.id);
+      _consejosComunales = await _comunaRepo.getConsejosComunalesByComunaId(
+        newComuna.id,
+      );
       if (mounted) setState(() {});
     }
   }
@@ -78,8 +84,8 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
 
     if (_selectedCreador == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor, busque y seleccione un creador."),
+        const SnackBar(
+          content: Text("Por favor, busque y seleccione un creador."),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -89,29 +95,31 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
     setState(() => _isSaving = true);
     try {
       final solicitud = Solicitud()
-        ..idSolicitud = 0 // Se asignará automáticamente por Isar si es autoIncrement
+        ..idSolicitud =
+            0 // Se asignará automáticamente por Isar si es autoIncrement
         ..comuna.value = _selectedComuna
         ..consejoComunal.value = _selectedConsejoComunal
         ..comunidad = _comunidadController.text.trim()
         ..ubch.value = _selectedUbch
         ..creador.value = _selectedCreador
         ..tipoSolicitud = _selectedTipoSolicitud
-        ..otrosTipoSolicitud = null // Inicializar el campo
+        ..otrosTipoSolicitud =
+            null // Inicializar el campo
         ..descripcion = _descripcionController.text.trim();
 
       if (_selectedTipoSolicitud == TipoSolicitud.Iluminacion) {
         // Parsear valores de los campos de texto y guardarlos por separado
         final lamparasText = _cantidadLamparasController.text.trim();
         final bombillosText = _cantidadBombillosController.text.trim();
-        
+
         // Guardar lámparas y bombillos por separado en la base de datos
         // Si el campo está vacío, se guarda como null
         // Si tiene texto pero no es un número válido, se guarda como null (no como 0)
-        solicitud.cantidadLamparas = lamparasText.isEmpty 
-            ? null 
+        solicitud.cantidadLamparas = lamparasText.isEmpty
+            ? null
             : int.tryParse(lamparasText);
-        solicitud.cantidadBombillos = bombillosText.isEmpty 
-            ? null 
+        solicitud.cantidadBombillos = bombillosText.isEmpty
+            ? null
             : int.tryParse(bombillosText);
       }
 
@@ -119,8 +127,8 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("✅ Solicitud registrada con éxito"),
+        const SnackBar(
+          content: Text("✅ Solicitud registrada con éxito"),
           backgroundColor: AppColors.success,
         ),
       );
@@ -152,7 +160,23 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Plan García de Hevia Iluminada 2026')),
+      appBar: AppBar(
+        title: const Text('Plan García de Hevia Iluminada 2026'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.upload_file_rounded),
+            tooltip: 'Carga masiva desde Excel/CSV',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const BulkUploadSolicitudesPage(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -163,8 +187,8 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
               Text(
                 "Datos de la Solicitud",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 24),
               // Dropdown para Comuna
@@ -188,8 +212,11 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
                     _selectedConsejoComunal = newValue;
                   });
                 },
-                (consejo) => consejo.nombreConsejo, // Mostrar nombre de consejo comunal
-                isEnabled: _selectedComuna != null, // Habilitar si hay comuna seleccionada
+                (consejo) =>
+                    consejo.nombreConsejo, // Mostrar nombre de consejo comunal
+                isEnabled:
+                    _selectedComuna !=
+                    null, // Habilitar si hay comuna seleccionada
               ),
               const SizedBox(height: 16),
               _buildInput("Comunidad", Icons.place, _comunidadController),
@@ -205,33 +232,42 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
                     _selectedUbch = newValue;
                   });
                 },
-                (organizacion) => organizacion.nombreLargo, // Mostrar nombre de UBCH
+                (organizacion) =>
+                    organizacion.nombreLargo, // Mostrar nombre de UBCH
               ),
               const SizedBox(height: 16),
               Text(
                 "Creado por",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: _buildInput("Cédula", Icons.person, _cedulaCreadorController, keyboardType: TextInputType.number),
+                    child: _buildInput(
+                      "Cédula",
+                      Icons.person,
+                      _cedulaCreadorController,
+                      keyboardType: TextInputType.number,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final cedula = int.tryParse(_cedulaCreadorController.text.trim());
+                      final cedula = int.tryParse(
+                        _cedulaCreadorController.text.trim(),
+                      );
                       if (cedula != null) {
-                        final habitante = await _habitanteRepo.getHabitanteByCedula(cedula);
+                        final habitante = await _habitanteRepo
+                            .getHabitanteByCedula(cedula);
                         setState(() {
                           _selectedCreador = habitante;
                           if (habitante == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text("Habitante no encontrado"),
+                              const SnackBar(
+                                content: Text("Habitante no encontrado"),
                                 backgroundColor: AppColors.error,
                               ),
                             );
@@ -258,17 +294,34 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildInput("Cantidad de Lámparas", Icons.lightbulb, _cantidadLamparasController, keyboardType: TextInputType.number, required: false),
+                      child: _buildInput(
+                        "Cantidad de Lámparas",
+                        Icons.lightbulb,
+                        _cantidadLamparasController,
+                        keyboardType: TextInputType.number,
+                        required: false,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildInput("Cantidad de Bombillos", Icons.lightbulb_outline, _cantidadBombillosController, keyboardType: TextInputType.number, required: false),
+                      child: _buildInput(
+                        "Cantidad de Bombillos",
+                        Icons.lightbulb_outline,
+                        _cantidadBombillosController,
+                        keyboardType: TextInputType.number,
+                        required: false,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
               ],
-              _buildInput("Descripción", Icons.description, _descripcionController, maxLines: 3),
+              _buildInput(
+                "Descripción",
+                Icons.description,
+                _descripcionController,
+                maxLines: 3,
+              ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -278,7 +331,10 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text("GUARDAR SOLICITUD DE LUMINARIAS"),
                 ),
@@ -304,10 +360,7 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
       readOnly: isReadOnly,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
       validator: required
           ? (value) => value == null || value.isEmpty ? "Campo requerido" : null
           : null,
@@ -324,11 +377,8 @@ class _AddSolicitudPageState extends State<AddSolicitudPage> {
     bool isEnabled = true,
   }) {
     return DropdownButtonFormField<T>(
-      value: selectedValue,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
+      initialValue: selectedValue,
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
       selectedItemBuilder: (BuildContext context) {
         return items.map<Widget>((T value) {
           return Align(

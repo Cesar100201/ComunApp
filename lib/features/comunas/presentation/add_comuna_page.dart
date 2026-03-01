@@ -53,8 +53,8 @@ class _AddComunaPageState extends State<AddComunaPage> {
     if (!_formKey.currentState!.validate()) return;
     if (_latitud == null || _longitud == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor seleccione una ubicación en el mapa"),
+        const SnackBar(
+          content: Text("Por favor seleccione una ubicación en el mapa"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -80,8 +80,8 @@ class _AddComunaPageState extends State<AddComunaPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("✅ Comuna registrada con éxito"),
+        const SnackBar(
+          content: Text("✅ Comuna registrada con éxito"),
           backgroundColor: AppColors.success,
         ),
       );
@@ -114,7 +114,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
               Text(
                 "Datos de la Comuna",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 24),
@@ -144,7 +144,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
               Text(
                 "Ubicación",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 12),
@@ -178,7 +178,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
                             color: AppColors.primaryUltraLight,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.map,
                             color: AppColors.primary,
                           ),
@@ -191,7 +191,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
                               Text(
                                 "Seleccionar ubicación en el mapa",
                                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: AppColors.textPrimary,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                       fontWeight: FontWeight.w600,
                                     ),
                               ),
@@ -200,14 +200,14 @@ class _AddComunaPageState extends State<AddComunaPage> {
                                 Text(
                                   "Lat: ${_latitud!.toStringAsFixed(6)}, Lng: ${_longitud!.toStringAsFixed(6)}",
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSecondary,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                               ] else
                                 Text(
                                   "Toca para seleccionar",
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textTertiary,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                             ],
@@ -216,7 +216,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
                         Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 16,
-                          color: AppColors.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ],
                     ),
@@ -281,7 +281,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
               TextSpan(
                 text: ' (opcional)',
                 style: Theme.of(context).inputDecorationTheme.labelStyle?.copyWith(
-                      color: AppColors.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.normal,
                     ),
               ),
@@ -301,7 +301,7 @@ class _AddComunaPageState extends State<AddComunaPage> {
     void Function(T?) onChanged,
   ) {
     return DropdownButtonFormField<T>(
-      value: selectedValue,
+      initialValue: selectedValue,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

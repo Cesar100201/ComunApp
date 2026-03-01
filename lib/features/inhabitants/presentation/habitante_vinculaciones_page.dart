@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:isar/isar.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/vinculacion_repository.dart';
-import '../../organizaciones/data/repositories/organizacion_repository.dart';
+import '../../organizations/data/repositories/organizacion_repository.dart';
 import 'organizacion_miembros_page.dart';
 
 // Clase helper para representar tanto organizaciones como consejos comunales
@@ -13,14 +14,14 @@ class EntidadVinculable {
   final List<Cargo> cargos;
   final Organizacion? organizacion;
   final ConsejoComunal? consejoComunal;
-  
+
   EntidadVinculable({
     required this.nombre,
     required this.cargos,
     this.organizacion,
     this.consejoComunal,
   });
-  
+
   bool get esOrganizacion => organizacion != null;
   bool get esConsejoComun => consejoComunal != null;
 }
@@ -28,44 +29,50 @@ class EntidadVinculable {
 class HabitanteVinculacionesPage extends StatefulWidget {
   final Habitante habitante;
 
-  const HabitanteVinculacionesPage({
-    super.key,
-    required this.habitante,
-  });
+  const HabitanteVinculacionesPage({super.key, required this.habitante});
 
   @override
-  State<HabitanteVinculacionesPage> createState() => _HabitanteVinculacionesPageState();
+  State<HabitanteVinculacionesPage> createState() =>
+      _HabitanteVinculacionesPageState();
 }
 
-class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage> {
+class _HabitanteVinculacionesPageState
+    extends State<HabitanteVinculacionesPage> {
   late final VinculacionRepository _vinculacionRepo;
   late final OrganizacionRepository _organizacionRepo;
   List<Vinculacion> _vinculaciones = [];
   bool _isLoading = true;
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _initializeRepositories();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _initializeRepositories() async {
     final isar = await DbHelper().db;
     _vinculacionRepo = VinculacionRepository(isar);
-    _organizacionRepo = OrganizacionRepository(isar);
+    _organizacionRepo = OrganizacionRepository();
     _cargarVinculaciones();
   }
 
   Future<void> _cargarVinculaciones() async {
     setState(() => _isLoading = true);
-    final vinculaciones = await _vinculacionRepo.getVinculacionesPorHabitante(widget.habitante.id);
-    
+    final vinculaciones = await _vinculacionRepo.getVinculacionesPorHabitante(
+      widget.habitante.id,
+    );
+
     // Cargar relaciones
     for (var v in vinculaciones) {
       await v.organizacion.load();
       await v.consejoComunal.load();
     }
-    
+
     if (mounted) {
       setState(() {
         _vinculaciones = vinculaciones;
@@ -79,9 +86,9 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
     final isar = await DbHelper().db;
     final habitanteCompleto = await isar.habitantes.get(widget.habitante.id);
     if (habitanteCompleto == null) return;
-    
+
     await habitanteCompleto.consejoComunal.load();
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => _VinculacionDialog(
@@ -101,9 +108,9 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
     final isar = await DbHelper().db;
     final habitanteCompleto = await isar.habitantes.get(widget.habitante.id);
     if (habitanteCompleto == null) return;
-    
+
     await habitanteCompleto.consejoComunal.load();
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => _VinculacionDialog(
@@ -124,7 +131,9 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirmar Eliminación"),
-        content: const Text("¿Está seguro de que desea eliminar esta vinculación?"),
+        content: const Text(
+          "¿Está seguro de que desea eliminar esta vinculación?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -144,8 +153,8 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
         await _vinculacionRepo.eliminarVinculacion(vinculacion.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Vinculación eliminada"),
+            const SnackBar(
+              content: Text("✅ Vinculación eliminada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -180,15 +189,15 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _vinculaciones.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _vinculaciones.length,
-                  itemBuilder: (context, index) {
-                    final v = _vinculaciones[index];
-                    return _buildVinculacionCard(v);
-                  },
-                ),
+          ? _buildEmptyState()
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _vinculaciones.length,
+              itemBuilder: (context, index) {
+                final v = _vinculaciones[index];
+                return _buildVinculacionCard(v);
+              },
+            ),
     );
   }
 
@@ -200,21 +209,21 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
           Icon(
             Icons.group_work_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "Sin vinculaciones",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             "Toca el botón + para agregar una vinculación",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -225,9 +234,11 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
     // Determinar el nombre y tipo de la entidad
     String nombreEntidad = "Sin asignar";
     IconData icono = Icons.group_work;
-    Color colorIcono = v.activo ? AppColors.success : AppColors.textTertiary;
+    Color colorIcono = v.activo
+        ? AppColors.success
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     String tipoEntidad = "";
-    
+
     if (v.organizacion.value != null) {
       nombreEntidad = v.organizacion.value!.nombreLargo;
       icono = Icons.business;
@@ -235,10 +246,12 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
     } else if (v.consejoComunal.value != null) {
       nombreEntidad = v.consejoComunal.value!.nombreConsejo;
       icono = Icons.groups;
-      colorIcono = v.activo ? AppColors.primaryLight : AppColors.textTertiary;
+      colorIcono = v.activo
+          ? AppColors.primaryLight
+          : Theme.of(context).colorScheme.onSurfaceVariant;
       tipoEntidad = "Consejo Comunal";
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -256,19 +269,23 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
         },
         borderRadius: BorderRadius.circular(12),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
           leading: CircleAvatar(
-            backgroundColor: v.activo ? colorIcono.withOpacity(0.1) : AppColors.textTertiary.withOpacity(0.1),
-            child: Icon(
-              icono,
-              color: colorIcono,
-            ),
+            backgroundColor: v.activo
+                ? colorIcono.withValues(alpha: 0.1)
+                : Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
+            child: Icon(icono, color: colorIcono),
           ),
           title: Text(
             nombreEntidad,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -279,21 +296,21 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
                   Text(
                     tipoEntidad,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 Text(
                   "Cargo: ${v.cargo}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 Text(
                   "Ámbito: ${v.ambito.toString().split('.').last}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -302,15 +319,24 @@ class _HabitanteVinculacionesPageState extends State<HabitanteVinculacionesPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
+                icon: const Icon(
+                  Icons.edit,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
                 onPressed: () => _editarVinculacion(v),
                 tooltip: "Editar",
               ),
-              IconButton(
-                icon: Icon(Icons.delete, color: AppColors.error, size: 20),
-                onPressed: () => _eliminarVinculacion(v),
-                tooltip: "Eliminar",
-              ),
+              if (_canDelete)
+                IconButton(
+                  icon: const Icon(
+                    Icons.delete,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
+                  onPressed: () => _eliminarVinculacion(v),
+                  tooltip: "Eliminar",
+                ),
             ],
           ),
         ),
@@ -358,32 +384,36 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
   Future<void> _cargarEntidades() async {
     final List<EntidadVinculable> entidades = [];
     final isar = await DbHelper().db;
-    
+
     // Cargar organizaciones
-    final orgs = await widget.organizacionRepo.getAllOrganizaciones();
+    final orgs = await widget.organizacionRepo.obtenerTodas();
     for (var org in orgs) {
-      entidades.add(EntidadVinculable(
-        nombre: org.nombreLargo,
-        cargos: org.cargos,
-        organizacion: org,
-      ));
+      entidades.add(
+        EntidadVinculable(
+          nombre: org.nombreLargo,
+          cargos: org.cargos,
+          organizacion: org,
+        ),
+      );
     }
-    
+
     // Cargar el habitante completo desde la base de datos para asegurar relaciones actualizadas
     final habitanteCompleto = await isar.habitantes.get(widget.habitante.id);
     if (habitanteCompleto != null) {
       await habitanteCompleto.consejoComunal.load();
-      
+
       if (habitanteCompleto.consejoComunal.value != null) {
         final consejo = habitanteCompleto.consejoComunal.value!;
-        entidades.add(EntidadVinculable(
-          nombre: "${consejo.nombreConsejo} (Consejo Comunal)",
-          cargos: consejo.cargos,
-          consejoComunal: consejo,
-        ));
+        entidades.add(
+          EntidadVinculable(
+            nombre: "${consejo.nombreConsejo} (Consejo Comunal)",
+            cargos: consejo.cargos,
+            consejoComunal: consejo,
+          ),
+        );
       }
     }
-    
+
     if (mounted) {
       setState(() {
         _entidades = entidades;
@@ -392,7 +422,9 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
           if (widget.vinculacion!.organizacion.value != null) {
             try {
               _selectedEntidad = _entidades.firstWhere(
-                (e) => e.organizacion?.id == widget.vinculacion!.organizacion.value!.id,
+                (e) =>
+                    e.organizacion?.id ==
+                    widget.vinculacion!.organizacion.value!.id,
               );
             } catch (e) {
               _selectedEntidad = null;
@@ -400,7 +432,9 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
           } else if (widget.vinculacion!.consejoComunal.value != null) {
             try {
               _selectedEntidad = _entidades.firstWhere(
-                (e) => e.consejoComunal?.id == widget.vinculacion!.consejoComunal.value!.id,
+                (e) =>
+                    e.consejoComunal?.id ==
+                    widget.vinculacion!.consejoComunal.value!.id,
               );
             } catch (e) {
               _selectedEntidad = null;
@@ -417,9 +451,12 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
   void _cargarCargosDisponibles() {
     if (_selectedEntidad != null) {
       setState(() {
-        _cargosDisponibles = _selectedEntidad!.cargos.map((c) => c.nombreCargo).toList();
+        _cargosDisponibles = _selectedEntidad!.cargos
+            .map((c) => c.nombreCargo)
+            .toList();
         // Si el cargo actual no está en la lista, limpiar
-        if (_selectedCargo != null && !_cargosDisponibles.contains(_selectedCargo)) {
+        if (_selectedCargo != null &&
+            !_cargosDisponibles.contains(_selectedCargo)) {
           _selectedCargo = null;
         }
       });
@@ -435,8 +472,8 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedEntidad == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Debe seleccionar una organización o consejo comunal"),
+        const SnackBar(
+          content: Text("Debe seleccionar una organización o consejo comunal"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -444,8 +481,8 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
     }
     if (_selectedCargo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Debe seleccionar un cargo"),
+        const SnackBar(
+          content: Text("Debe seleccionar un cargo"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -458,7 +495,9 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
       // Validar si el cargo es único y ya está ocupado
       final cargo = _selectedEntidad!.cargos.firstWhere(
         (c) => c.nombreCargo == _selectedCargo,
-        orElse: () => Cargo()..nombreCargo = _selectedCargo!..esUnico = false,
+        orElse: () => Cargo()
+          ..nombreCargo = _selectedCargo!
+          ..esUnico = false,
       );
 
       if (cargo.esUnico) {
@@ -468,19 +507,22 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
             .filter()
             .isDeletedEqualTo(false)
             .findAll();
-        
+
         for (var v in vinculacionesAll) {
           await v.organizacion.load();
           await v.consejoComunal.load();
-          
+
           // Verificar si es la misma entidad
           bool mismaEntidad = false;
           if (_selectedEntidad!.esOrganizacion) {
-            mismaEntidad = v.organizacion.value?.id == _selectedEntidad!.organizacion!.id;
+            mismaEntidad =
+                v.organizacion.value?.id == _selectedEntidad!.organizacion!.id;
           } else if (_selectedEntidad!.esConsejoComun) {
-            mismaEntidad = v.consejoComunal.value?.id == _selectedEntidad!.consejoComunal!.id;
+            mismaEntidad =
+                v.consejoComunal.value?.id ==
+                _selectedEntidad!.consejoComunal!.id;
           }
-          
+
           // Si es otra vinculación con el mismo cargo en la misma entidad y está activa
           if (v.id != widget.vinculacion?.id &&
               mismaEntidad &&
@@ -489,7 +531,9 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text("El cargo \"$_selectedCargo\" ya está ocupado por otra persona"),
+                  content: Text(
+                    "El cargo \"$_selectedCargo\" ya está ocupado por otra persona",
+                  ),
                   backgroundColor: AppColors.error,
                   duration: const Duration(seconds: 4),
                 ),
@@ -506,7 +550,7 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
       vinculacion.ambito = _selectedAmbito;
       vinculacion.activo = _activo;
       vinculacion.persona.value = widget.habitante;
-      
+
       // Asignar la organización o consejo comunal correspondiente
       if (_selectedEntidad!.esOrganizacion) {
         vinculacion.organizacion.value = _selectedEntidad!.organizacion;
@@ -542,7 +586,9 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.vinculacion == null ? "Nueva Vinculación" : "Editar Vinculación"),
+      title: Text(
+        widget.vinculacion == null ? "Nueva Vinculación" : "Editar Vinculación",
+      ),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -550,7 +596,7 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<EntidadVinculable>(
-                value: _selectedEntidad,
+                initialValue: _selectedEntidad,
                 decoration: const InputDecoration(
                   labelText: "Organización / Consejo Comunal *",
                   prefixIcon: Icon(Icons.business),
@@ -561,9 +607,13 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
                     child: Row(
                       children: [
                         Icon(
-                          entidad.esConsejoComun ? Icons.groups : Icons.business,
+                          entidad.esConsejoComun
+                              ? Icons.groups
+                              : Icons.business,
                           size: 16,
-                          color: entidad.esConsejoComun ? AppColors.primaryLight : AppColors.warning,
+                          color: entidad.esConsejoComun
+                              ? AppColors.primaryLight
+                              : AppColors.warning,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -589,20 +639,27 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.warning.withOpacity(0.1),
+                    color: AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.warning),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.warning, color: AppColors.warning, size: 20),
+                      const Icon(
+                        Icons.warning,
+                        color: AppColors.warning,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _selectedEntidad!.esConsejoComun 
+                          _selectedEntidad!.esConsejoComun
                               ? "Este consejo comunal no tiene cargos definidos. Debe agregarlos primero."
                               : "Esta organización no tiene cargos definidos. Debe agregarlos primero.",
-                          style: TextStyle(color: AppColors.warning, fontSize: 12),
+                          style: const TextStyle(
+                            color: AppColors.warning,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -610,13 +667,15 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
                 )
               else if (_cargosDisponibles.isNotEmpty)
                 DropdownButtonFormField<String>(
-                  value: _selectedCargo,
+                  initialValue: _selectedCargo,
                   decoration: const InputDecoration(
                     labelText: "Cargo *",
                     prefixIcon: Icon(Icons.work),
                   ),
                   items: _cargosDisponibles.map((cargoNombre) {
-                    final cargo = _selectedEntidad!.cargos.firstWhere((c) => c.nombreCargo == cargoNombre);
+                    final cargo = _selectedEntidad!.cargos.firstWhere(
+                      (c) => c.nombreCargo == cargoNombre,
+                    );
                     return DropdownMenuItem(
                       value: cargoNombre,
                       child: Row(
@@ -624,7 +683,9 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
                           Icon(
                             cargo.esUnico ? Icons.person : Icons.groups,
                             size: 16,
-                            color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                            color: cargo.esUnico
+                                ? AppColors.warning
+                                : AppColors.info,
                           ),
                           const SizedBox(width: 8),
                           Text(cargoNombre),
@@ -635,12 +696,13 @@ class _VinculacionDialogState extends State<_VinculacionDialog> {
                   onChanged: (value) {
                     setState(() => _selectedCargo = value);
                   },
-                  validator: (value) => value == null ? "Debe seleccionar un cargo" : null,
+                  validator: (value) =>
+                      value == null ? "Debe seleccionar un cargo" : null,
                 ),
               const SizedBox(height: 16),
 
               DropdownButtonFormField<Ambito>(
-                value: _selectedAmbito,
+                initialValue: _selectedAmbito,
                 decoration: const InputDecoration(
                   labelText: "Ámbito *",
                   prefixIcon: Icon(Icons.place),

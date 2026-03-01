@@ -122,13 +122,13 @@ class _SearchHabitantePageState extends State<SearchHabitantePage> {
           Icon(
             Icons.person_search_rounded,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No se encontraron coincidencias",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -157,7 +157,7 @@ class _SearchHabitantePageState extends State<SearchHabitantePage> {
             title: Text(
               h.nombreCompleto,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
             ),
             subtitle: Padding(
@@ -165,14 +165,14 @@ class _SearchHabitantePageState extends State<SearchHabitantePage> {
               child: Text(
                 "C.I: ${h.cedula}${h.direccion.isNotEmpty ? ' • ${h.direccion}' : ''}",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
             ),
             trailing: Icon(
               Icons.arrow_forward_ios_rounded,
               size: 16,
-              color: AppColors.textTertiary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             onTap: () {
               Navigator.push(

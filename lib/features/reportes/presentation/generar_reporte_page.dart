@@ -10,10 +10,7 @@ import 'package:image_picker/image_picker.dart';
 class GenerarReportePage extends StatefulWidget {
   final Solicitud solicitud;
 
-  const GenerarReportePage({
-    super.key,
-    required this.solicitud,
-  });
+  const GenerarReportePage({super.key, required this.solicitud});
 
   @override
   State<GenerarReportePage> createState() => _GenerarReportePageState();
@@ -28,10 +25,10 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
   final List<String> _fotosUrls = [];
   List<Organizacion> _organizacionesSeleccionadas = [];
   List<Organizacion> _todasOrganizaciones = [];
-  
+
   bool _isLoading = true;
   bool _isSaving = false;
-  
+
   late ReporteRepository _reporteRepo;
   late OrganizacionRepository _organizacionRepo;
   final ImagePicker _picker = ImagePicker();
@@ -46,9 +43,9 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
     final isar = await DbHelper().db;
     _reporteRepo = ReporteRepository(isar);
     _organizacionRepo = OrganizacionRepository();
-    
+
     await _cargarOrganizaciones();
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -71,8 +68,8 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
     if (_fotosUrls.length >= 3) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Máximo 3 fotos permitidas"),
+          const SnackBar(
+            content: Text("Máximo 3 fotos permitidas"),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -109,8 +106,8 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
     if (_fotosUrls.length >= 3) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Máximo 3 fotos permitidas"),
+          const SnackBar(
+            content: Text("Máximo 3 fotos permitidas"),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -170,8 +167,8 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
 
     if (_fotosUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Debe agregar al menos una foto"),
+        const SnackBar(
+          content: Text("Debe agregar al menos una foto"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -205,8 +202,8 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("✅ Reporte creado con éxito"),
+          const SnackBar(
+            content: Text("✅ Reporte creado con éxito"),
             backgroundColor: AppColors.success,
           ),
         );
@@ -235,9 +232,7 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Generar Reporte"),
-      ),
+      appBar: AppBar(title: const Text("Generar Reporte")),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -257,34 +252,39 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                   border: Border.all(color: AppColors.border),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Column(
-                  children: [
-                    RadioListTile<EstatusReporte>(
-                      title: const Text("Completado"),
-                      subtitle: const Text("La solicitud fue resuelta completamente"),
-                      value: EstatusReporte.Completo,
-                      groupValue: _estatusReporte,
-                      onChanged: (value) {
-                        setState(() => _estatusReporte = value!);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    RadioListTile<EstatusReporte>(
-                      title: const Text("Parcial"),
-                      subtitle: const Text("La solicitud fue resuelta parcialmente"),
-                      value: EstatusReporte.Parcial,
-                      groupValue: _estatusReporte,
-                      onChanged: (value) {
-                        setState(() => _estatusReporte = value!);
-                      },
-                    ),
-                  ],
+                child: RadioGroup<EstatusReporte>(
+                  groupValue: _estatusReporte,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _estatusReporte = value);
+                    }
+                  },
+                  child: Column(
+                    children: [
+                      const RadioListTile<EstatusReporte>(
+                        title: Text("Completado"),
+                        subtitle: Text(
+                          "La solicitud fue resuelta completamente",
+                        ),
+                        value: EstatusReporte.Completo,
+                      ),
+                      const Divider(height: 1),
+                      const RadioListTile<EstatusReporte>(
+                        title: Text("Parcial"),
+                        subtitle: Text(
+                          "La solicitud fue resuelta parcialmente",
+                        ),
+                        value: EstatusReporte.Parcial,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
 
               // Luminarias Entregadas
-              if (widget.solicitud.tipoSolicitud == TipoSolicitud.Iluminacion) ...[
+              if (widget.solicitud.tipoSolicitud ==
+                  TipoSolicitud.Iluminacion) ...[
                 _buildSectionTitle("Luminarias Entregadas"),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -323,7 +323,7 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.business, color: AppColors.primary),
+                        const Icon(Icons.business, color: AppColors.primary),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -338,9 +338,8 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                                 _organizacionesSeleccionadas.isEmpty
                                     ? "Seleccionar organizaciones"
                                     : "${_organizacionesSeleccionadas.length} organizacion(es) seleccionada(s)",
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ],
                           ),
@@ -408,13 +407,16 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                     borderRadius: BorderRadius.circular(12),
                     color: AppColors.primaryUltraLight,
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.add_photo_alternate,
-                            size: 40, color: AppColors.textTertiary),
-                        const SizedBox(height: 8),
+                        Icon(
+                          Icons.add_photo_alternate,
+                          size: 40,
+                          color: AppColors.textTertiary,
+                        ),
+                        SizedBox(height: 8),
                         Text(
                           "No hay fotos agregadas",
                           style: TextStyle(color: AppColors.textTertiary),
@@ -451,8 +453,11 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                                 backgroundColor: Colors.black54,
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
-                                  icon: const Icon(Icons.close,
-                                      size: 16, color: Colors.white),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
                                   onPressed: () => _eliminarFoto(index),
                                 ),
                               ),
@@ -472,7 +477,8 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                 controller: _descripcionController,
                 decoration: InputDecoration(
                   labelText: "Descripción",
-                  hintText: "Describa lo que se hizo y lo que no se pudo completar",
+                  hintText:
+                      "Describa lo que se hizo y lo que no se pudo completar",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -510,8 +516,9 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
@@ -551,10 +558,7 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
               children: [
                 const Text(
                   "Solicitud",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -569,10 +573,7 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
                   const SizedBox(height: 4),
                   Text(
                     widget.solicitud.comunidad,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ],
               ],
@@ -587,9 +588,9 @@ class _GenerarReportePageState extends State<GenerarReportePage> {
     return Text(
       title,
       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 
@@ -649,8 +650,13 @@ class _DialogoSeleccionOrganizacionesState
   @override
   Widget build(BuildContext context) {
     final filtradas = widget.organizaciones.where((org) {
-      return org.nombreLargo.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (org.abreviacion?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+      return org.nombreLargo.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
+          (org.abreviacion?.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ) ??
+              false);
     }).toList();
 
     return Dialog(
@@ -698,7 +704,7 @@ class _DialogoSeleccionOrganizacionesState
             const Divider(height: 1),
             Expanded(
               child: filtradas.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Text(
                         "No se encontraron organizaciones",
                         style: TextStyle(color: AppColors.textTertiary),
@@ -708,8 +714,10 @@ class _DialogoSeleccionOrganizacionesState
                       itemCount: filtradas.length,
                       itemBuilder: (context, index) {
                         final org = filtradas[index];
-                        final isSelected = _seleccionadas.any((o) => o.id == org.id);
-                        
+                        final isSelected = _seleccionadas.any(
+                          (o) => o.id == org.id,
+                        );
+
                         return CheckboxListTile(
                           title: Text(org.nombreLargo),
                           subtitle: org.abreviacion != null
@@ -721,7 +729,9 @@ class _DialogoSeleccionOrganizacionesState
                               if (value == true) {
                                 _seleccionadas.add(org);
                               } else {
-                                _seleccionadas.removeWhere((o) => o.id == org.id);
+                                _seleccionadas.removeWhere(
+                                  (o) => o.id == org.id,
+                                );
                               }
                             });
                           },

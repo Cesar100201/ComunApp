@@ -97,7 +97,7 @@ class _ReportesListPageState extends State<ReportesListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.assignment_outlined,
             size: 80,
             color: AppColors.textTertiary,
@@ -190,7 +190,7 @@ class _ReportesListPageState extends State<ReportesListPage> {
                       ],
                     ),
                   ),
-                  Icon(
+                  const Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 16,
                     color: AppColors.textTertiary,
@@ -219,7 +219,7 @@ class _ReportesListPageState extends State<ReportesListPage> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.lightbulb_outline,
                             size: 16,
                             color: AppColors.primary,
@@ -239,7 +239,7 @@ class _ReportesListPageState extends State<ReportesListPage> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.groups,
                             size: 16,
                             color: AppColors.primary,

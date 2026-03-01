@@ -73,8 +73,8 @@ class _EditConsejoInfoBasicaPageState extends State<EditConsejoInfoBasicaPage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Información actualizada"),
+            const SnackBar(
+              content: Text("✅ Información actualizada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -138,7 +138,7 @@ class _EditConsejoInfoBasicaPageState extends State<EditConsejoInfoBasicaPage> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<TipoZona>(
-                value: _selectedTipoZona,
+                initialValue: _selectedTipoZona,
                 decoration: const InputDecoration(
                   labelText: "Tipo de Zona *",
                   prefixIcon: Icon(Icons.terrain),

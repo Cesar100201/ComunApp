@@ -6,7 +6,6 @@ import '../data/repositories/comuna_repository.dart';
 import 'add_comuna_page.dart';
 import 'bulk_upload_comunas_page.dart';
 import 'comuna_consejos_page.dart';
-import 'comuna_profile_page.dart';
 
 class ComunasListPage extends StatefulWidget {
   const ComunasListPage({super.key});
@@ -104,13 +103,13 @@ class _ComunasListPageState extends State<ComunasListPage> {
           Icon(
             Icons.location_city_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay comunas registradas",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -135,7 +134,7 @@ class _ComunasListPageState extends State<ComunasListPage> {
         },
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          leading: CircleAvatar(
+          leading: const CircleAvatar(
             backgroundColor: AppColors.primaryUltraLight,
             child: Icon(
               Icons.location_city,
@@ -145,7 +144,7 @@ class _ComunasListPageState extends State<ComunasListPage> {
           title: Text(
             c.nombreComuna,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
           ),
           subtitle: Padding(
@@ -156,13 +155,13 @@ class _ComunasListPageState extends State<ComunasListPage> {
                 Text(
                   "Código SITUR: ${c.codigoSitur}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
                 Text(
                   "${c.municipio}, ${c.parroquia.toString().split('.').last}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ],

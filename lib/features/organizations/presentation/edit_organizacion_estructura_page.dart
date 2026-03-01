@@ -6,19 +6,18 @@ import '../../../../database/db_helper.dart';
 class EditOrganizacionEstructuraPage extends StatefulWidget {
   final Organizacion organizacion;
 
-  const EditOrganizacionEstructuraPage({
-    super.key,
-    required this.organizacion,
-  });
+  const EditOrganizacionEstructuraPage({super.key, required this.organizacion});
 
   @override
-  State<EditOrganizacionEstructuraPage> createState() => _EditOrganizacionEstructuraPageState();
+  State<EditOrganizacionEstructuraPage> createState() =>
+      _EditOrganizacionEstructuraPageState();
 }
 
-class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstructuraPage> {
+class _EditOrganizacionEstructuraPageState
+    extends State<EditOrganizacionEstructuraPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _cargoController;
-  
+
   List<Cargo> _cargos = [];
   bool _isSaving = false;
 
@@ -42,21 +41,25 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
   void _agregarCargo(bool esUnico) {
     final nombreCargo = _cargoController.text.trim();
     if (nombreCargo.isEmpty) return;
-    
-    if (_cargos.any((c) => c.nombreCargo.toLowerCase() == nombreCargo.toLowerCase())) {
+
+    if (_cargos.any(
+      (c) => c.nombreCargo.toLowerCase() == nombreCargo.toLowerCase(),
+    )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Este cargo ya existe"),
+        const SnackBar(
+          content: Text("Este cargo ya existe"),
           backgroundColor: AppColors.warning,
         ),
       );
       return;
     }
-    
+
     setState(() {
-      _cargos.add(Cargo()
-        ..nombreCargo = nombreCargo
-        ..esUnico = esUnico);
+      _cargos.add(
+        Cargo()
+          ..nombreCargo = nombreCargo
+          ..esUnico = esUnico,
+      );
       _cargoController.clear();
     });
   }
@@ -71,8 +74,8 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
     final nombreCargo = _cargoController.text.trim();
     if (nombreCargo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Escriba el nombre del cargo primero"),
+        const SnackBar(
+          content: Text("Escriba el nombre del cargo primero"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -89,24 +92,24 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
             Text("¿Cuántas personas pueden ocupar el cargo \"$nombreCargo\"?"),
             const SizedBox(height: 16),
             ListTile(
-              leading: Icon(Icons.person, color: AppColors.warning),
+              leading: const Icon(Icons.person, color: AppColors.warning),
               title: const Text("Cargo Único"),
               subtitle: const Text("Solo una persona puede ocuparlo"),
               onTap: () => Navigator.pop(context, true),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: AppColors.warning),
+                side: const BorderSide(color: AppColors.warning),
               ),
             ),
             const SizedBox(height: 12),
             ListTile(
-              leading: Icon(Icons.groups, color: AppColors.info),
+              leading: const Icon(Icons.groups, color: AppColors.info),
               title: const Text("Cargo Múltiple"),
               subtitle: const Text("Varias personas pueden ocuparlo"),
               onTap: () => Navigator.pop(context, false),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: AppColors.info),
+                side: const BorderSide(color: AppColors.info),
               ),
             ),
           ],
@@ -126,10 +129,10 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
 
     try {
       final isar = await DbHelper().db;
-      
+
       await isar.writeTxn(() async {
         final org = await isar.organizacions.get(widget.organizacion.id);
-        
+
         if (org != null) {
           org.cargos = _cargos.map((cargo) {
             return Cargo()
@@ -137,15 +140,15 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
               ..esUnico = cargo.esUnico;
           }).toList();
           org.isSynced = false;
-          
+
           await isar.organizacions.put(org);
         }
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("✅ Cargos actualizados"),
+          const SnackBar(
+            content: Text("✅ Cargos actualizados"),
             backgroundColor: AppColors.success,
           ),
         );
@@ -168,9 +171,7 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Estructura Organizativa"),
-      ),
+      appBar: AppBar(title: const Text("Estructura Organizativa")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -181,16 +182,16 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
               Text(
                 "Gestión de Cargos",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 "Define los cargos de la estructura organizativa.",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -223,14 +224,14 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
                     color: AppColors.surfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.textTertiary.withOpacity(0.3),
+                      color: AppColors.textTertiary.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.business_center_outlined,
                           size: 48,
                           color: AppColors.textTertiary,
@@ -238,16 +239,14 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
                         const SizedBox(height: 12),
                         Text(
                           "No hay cargos definidos",
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "Agrega cargos para definir la estructura organizativa",
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textTertiary),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -267,31 +266,41 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: (cargo.esUnico ? AppColors.warning : AppColors.info).withOpacity(0.1),
+                            color:
+                                (cargo.esUnico
+                                        ? AppColors.warning
+                                        : AppColors.info)
+                                    .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             cargo.esUnico ? Icons.person : Icons.groups,
-                            color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                            color: cargo.esUnico
+                                ? AppColors.warning
+                                : AppColors.info,
                             size: 24,
                           ),
                         ),
                         title: Text(
                           cargo.nombreCargo,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
                           cargo.esUnico ? "Cargo Único" : "Cargo Múltiple",
                           style: TextStyle(
-                            color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                            color: cargo.esUnico
+                                ? AppColors.warning
+                                : AppColors.info,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         trailing: IconButton(
-                          icon: Icon(Icons.delete, color: AppColors.error),
+                          icon: const Icon(
+                            Icons.delete,
+                            color: AppColors.error,
+                          ),
                           onPressed: () => _eliminarCargo(index),
                           tooltip: "Eliminar cargo",
                         ),
@@ -308,12 +317,17 @@ class _EditOrganizacionEstructuraPageState extends State<EditOrganizacionEstruct
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "🟡 Cargo Único: solo una persona puede ocuparlo\n🔵 Cargo Múltiple: varias personas pueden ocuparlo",
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: AppColors.textSecondary,
                                 fontSize: 11,
                               ),

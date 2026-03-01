@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/organizacion_repository.dart';
 import 'edit_organizacion_info_general_page.dart';
@@ -10,13 +11,11 @@ import 'edit_organizacion_vinculaciones_page.dart';
 class OrganizacionProfilePage extends StatefulWidget {
   final Organizacion organizacion;
 
-  const OrganizacionProfilePage({
-    super.key,
-    required this.organizacion,
-  });
+  const OrganizacionProfilePage({super.key, required this.organizacion});
 
   @override
-  State<OrganizacionProfilePage> createState() => _OrganizacionProfilePageState();
+  State<OrganizacionProfilePage> createState() =>
+      _OrganizacionProfilePageState();
 }
 
 class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
@@ -24,11 +23,16 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
   bool _isLoading = true;
   OrganizacionRepository? _repo;
   bool _repoInicializado = false;
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorio();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _inicializarRepositorio() async {
@@ -46,7 +50,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
     }
     final isar = await DbHelper().db;
     final organizacion = await isar.organizacions.get(widget.organizacion.id);
-    
+
     if (organizacion != null) {
       setState(() {
         _organizacionCompleto = organizacion;
@@ -65,7 +69,9 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirmar Eliminación"),
-        content: const Text("¿Está seguro de que desea eliminar esta organización?"),
+        content: const Text(
+          "¿Está seguro de que desea eliminar esta organización?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -86,11 +92,11 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
           await _inicializarRepositorio();
         }
         await _repo!.eliminarOrganizacion(widget.organizacion.id);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Organización eliminada"),
+            const SnackBar(
+              content: Text("✅ Organización eliminada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -124,11 +130,12 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
       appBar: AppBar(
         title: const Text("Perfil de la Organización"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _eliminarOrganizacion,
-            tooltip: "Eliminar",
-          ),
+          if (_canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _eliminarOrganizacion,
+              tooltip: "Eliminar",
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -149,7 +156,8 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditOrganizacionInfoGeneralPage(organizacion: o),
+                    builder: (context) =>
+                        EditOrganizacionInfoGeneralPage(organizacion: o),
                   ),
                 );
                 if (result == true) {
@@ -174,7 +182,8 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditOrganizacionEstructuraPage(organizacion: o),
+                    builder: (context) =>
+                        EditOrganizacionEstructuraPage(organizacion: o),
                   ),
                 );
                 if (result == true) {
@@ -195,9 +204,9 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                       Text(
                         "Cargos (${o.cargos.length}):",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       ...o.cargos.map((cargo) {
@@ -208,7 +217,9 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                               Icon(
                                 cargo.esUnico ? Icons.person : Icons.groups,
                                 size: 18,
-                                color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                                color: cargo.esUnico
+                                    ? AppColors.warning
+                                    : AppColors.info,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -218,16 +229,25 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: (cargo.esUnico ? AppColors.warning : AppColors.info).withOpacity(0.1),
+                                  color:
+                                      (cargo.esUnico
+                                              ? AppColors.warning
+                                              : AppColors.info)
+                                          .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   cargo.esUnico ? "Único" : "Múltiple",
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                                    color: cargo.esUnico
+                                        ? AppColors.warning
+                                        : AppColors.info,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -251,7 +271,8 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditOrganizacionVinculacionesPage(organizacion: o),
+                    builder: (context) =>
+                        EditOrganizacionVinculacionesPage(organizacion: o),
                   ),
                 );
                 if (result == true) {
@@ -277,7 +298,9 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                 _buildInfoRow(
                   "Sincronización",
                   o.isSynced ? "Sincronizado" : "Pendiente",
-                  valueColor: o.isSynced ? AppColors.success : AppColors.warning,
+                  valueColor: o.isSynced
+                      ? AppColors.success
+                      : AppColors.warning,
                 ),
               ],
             ),
@@ -300,11 +323,7 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
           CircleAvatar(
             radius: 40,
             backgroundColor: Colors.white.withValues(alpha: 0.3),
-            child: const Icon(
-              Icons.business,
-              size: 40,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.business, size: 40, color: Colors.white),
           ),
           const SizedBox(width: 20),
           Expanded(
@@ -365,14 +384,18 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
                   child: Text(
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 if (onEdit != null)
                   IconButton(
-                    icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
+                    icon: const Icon(
+                      Icons.edit,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     onPressed: onEdit,
                     tooltip: "Editar",
                     padding: EdgeInsets.zero,
@@ -399,18 +422,18 @@ class _OrganizacionProfilePageState extends State<OrganizacionProfilePage> {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: valueColor ?? AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: valueColor ?? AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

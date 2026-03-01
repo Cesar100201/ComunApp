@@ -53,7 +53,10 @@ class _SearchExtranjeroPageState extends State<SearchExtranjeroPage> {
       });
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 350), () => _buscarEnRepo(query));
+    _debounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _buscarEnRepo(query),
+    );
   }
 
   Future<void> _buscarEnRepo(String query) async {
@@ -74,9 +77,7 @@ class _SearchExtranjeroPageState extends State<SearchExtranjeroPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Buscar Extranjero"),
-      ),
+      appBar: AppBar(title: const Text("Buscar Extranjero")),
       body: Column(
         children: [
           Padding(
@@ -86,7 +87,8 @@ class _SearchExtranjeroPageState extends State<SearchExtranjeroPage> {
               autofocus: true,
               onChanged: _ejecutarBusqueda,
               decoration: InputDecoration(
-                hintText: "Cédula colombiana, Nombre, Departamento o Municipio...",
+                hintText:
+                    "Cédula colombiana, Nombre, Departamento o Municipio...",
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -100,14 +102,13 @@ class _SearchExtranjeroPageState extends State<SearchExtranjeroPage> {
               ),
             ),
           ),
-          if (_buscando)
-            const LinearProgressIndicator(),
+          if (_buscando) const LinearProgressIndicator(),
           Expanded(
             child: _buscando && _resultados.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _resultados.isEmpty && _searchController.text.isNotEmpty
-                    ? _buildNoResults()
-                    : _buildResultsList(),
+                ? _buildNoResults()
+                : _buildResultsList(),
           ),
         ],
       ),
@@ -119,13 +120,17 @@ class _SearchExtranjeroPageState extends State<SearchExtranjeroPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person_search_rounded, size: 80, color: AppColors.textTertiary),
+          Icon(
+            Icons.person_search_rounded,
+            size: 80,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           Text(
             "No se encontraron coincidencias",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -143,25 +148,29 @@ class _SearchExtranjeroPageState extends State<SearchExtranjeroPage> {
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              child: Icon(Icons.person, color: AppColors.primary),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              child: const Icon(Icons.person, color: AppColors.primary),
             ),
             title: Text(
               e.nombreCompleto,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 "C.C: ${e.cedulaColombiana} • $ubicacion",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textTertiary),
+            trailing: Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             onTap: () {
               Navigator.push(
                 context,

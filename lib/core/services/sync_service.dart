@@ -4,6 +4,9 @@ import 'package:isar/isar.dart' hide Query;
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore show Query;
 import '../../database/db_helper.dart';
 import '../../models/models.dart';
+import '../../features/gestion_municipal/data/control_seguimiento_media_sync_service.dart';
+import '../../features/gestion_municipal/data/control_seguimiento_model.dart';
+import '../../features/gestion_municipal/data/repositories/control_seguimiento_repository.dart';
 import '../utils/logger.dart';
 import '../utils/constants.dart';
 import 'sync_helpers.dart';
@@ -30,11 +33,11 @@ class SyncProgress {
 }
 
 /// Servicio de sincronización bidireccional entre Isar (local) y Firebase (nube).
-/// 
+///
 /// Maneja la sincronización de todas las colecciones del sistema:
 /// - Comunas, Consejos Comunales, Organizaciones, CLAPs
 /// - Habitantes, Proyectos, Solicitudes, Bitácora
-/// 
+///
 /// Usa [SyncHelper] para operaciones genéricas y reduce código duplicado.
 class SyncService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -61,23 +64,30 @@ class SyncService {
     fromFirebaseDoc: (isar, doc) async {
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return null;
-      
+
       final codigoSitur = data['codigoSitur'] as String? ?? doc.id;
-      final local = await isar.comunas.filter().codigoSiturEqualTo(codigoSitur).findFirst();
-      if (local != null && !local.isSynced) return null; // No sobrescribir cambios locales
-      
+      final local = await isar.comunas
+          .filter()
+          .codigoSiturEqualTo(codigoSitur)
+          .findFirst();
+      if (local != null && !local.isSynced) {
+        return null; // No sobrescribir cambios locales
+      }
+
       final comuna = local ?? Comuna();
       comuna.codigoSitur = codigoSitur;
       comuna.rif = data['rif'] as String?;
       comuna.codigoComElectoral = data['codigoComElectoral'] as String? ?? '';
       comuna.nombreComuna = data['nombreComuna'] as String? ?? '';
-      comuna.municipio = data['municipio'] as String? ?? AppConstants.defaultMunicipality;
+      comuna.municipio =
+          data['municipio'] as String? ?? AppConstants.defaultMunicipality;
       comuna.latitud = (data['latitud'] as num?)?.toDouble() ?? 0.0;
       comuna.longitud = (data['longitud'] as num?)?.toDouble() ?? 0.0;
       comuna.parroquia = _parseParroquia(data['parroquia'] as String?);
       return comuna;
     },
-    getPendingItems: (isar) => isar.comunas.filter().isSyncedEqualTo(false).findAll(),
+    getPendingItems: (isar) =>
+        isar.comunas.filter().isSyncedEqualTo(false).findAll(),
     saveItem: (isar, item) => isar.comunas.put(item),
   );
 
@@ -94,19 +104,26 @@ class SyncService {
       'longitud': c.longitud,
       'comunaCodigoSitur': c.comuna.value?.codigoSitur,
       'tipoZona': c.tipoZona.name,
-      'cargos': c.cargos.map((cargo) => {
-        'nombreCargo': cargo.nombreCargo,
-        'esUnico': cargo.esUnico,
-      }).toList(),
+      'cargos': c.cargos
+          .map(
+            (cargo) => {
+              'nombreCargo': cargo.nombreCargo,
+              'esUnico': cargo.esUnico,
+            },
+          )
+          .toList(),
     },
     fromFirebaseDoc: (isar, doc) async {
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return null;
-      
+
       final codigoSitur = data['codigoSitur'] as String? ?? doc.id;
-      final local = await isar.consejoComunals.filter().codigoSiturEqualTo(codigoSitur).findFirst();
+      final local = await isar.consejoComunals
+          .filter()
+          .codigoSiturEqualTo(codigoSitur)
+          .findFirst();
       if (local != null && !local.isSynced) return null;
-      
+
       final consejo = local ?? ConsejoComunal();
       consejo.codigoSitur = codigoSitur;
       consejo.rif = data['rif'] as String?;
@@ -118,7 +135,7 @@ class SyncService {
         (t) => t.name == (data['tipoZona'] as String? ?? 'Urbano'),
         orElse: () => TipoZona.Urbano,
       );
-      
+
       // Cargar cargos
       final cargosData = data['cargos'] as List<dynamic>?;
       if (cargosData != null) {
@@ -131,16 +148,20 @@ class SyncService {
       } else {
         consejo.cargos = [];
       }
-      
+
       // Buscar comuna relacionada
       final comunaCodigoSitur = data['comunaCodigoSitur'] as String?;
       if (comunaCodigoSitur != null) {
-        final comuna = await isar.comunas.filter().codigoSiturEqualTo(comunaCodigoSitur).findFirst();
+        final comuna = await isar.comunas
+            .filter()
+            .codigoSiturEqualTo(comunaCodigoSitur)
+            .findFirst();
         if (comuna != null) consejo.comuna.value = comuna;
       }
       return consejo;
     },
-    getPendingItems: (isar) => isar.consejoComunals.filter().isSyncedEqualTo(false).findAll(),
+    getPendingItems: (isar) =>
+        isar.consejoComunals.filter().isSyncedEqualTo(false).findAll(),
     saveItem: (isar, item) => isar.consejoComunals.put(item),
     loadRelations: (c) => c.comuna.load(),
     saveRelations: (isar, item) async {
@@ -160,19 +181,21 @@ class SyncService {
     fromFirebaseDoc: (isar, doc) async {
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return null;
-      
+
       Id? isarId;
       if (doc.id.startsWith('ORG_')) {
         isarId = int.tryParse(doc.id.replaceFirst('ORG_', ''));
       }
-      
+
       Organizacion? local;
       if (isarId != null) local = await isar.organizacions.get(isarId);
-      local ??= await isar.organizacions.filter()
-          .nombreLargoEqualTo(data['nombreLargo'] as String).findFirst();
-      
+      local ??= await isar.organizacions
+          .filter()
+          .nombreLargoEqualTo(data['nombreLargo'] as String)
+          .findFirst();
+
       if (local != null && !local.isSynced) return null;
-      
+
       final org = local ?? Organizacion();
       org.nombreLargo = data['nombreLargo'] as String;
       org.abreviacion = data['abreviacion'] as String?;
@@ -182,7 +205,8 @@ class SyncService {
       );
       return org;
     },
-    getPendingItems: (isar) => isar.organizacions.filter().isSyncedEqualTo(false).findAll(),
+    getPendingItems: (isar) =>
+        isar.organizacions.filter().isSyncedEqualTo(false).findAll(),
     saveItem: (isar, item) => isar.organizacions.put(item),
   );
 
@@ -198,31 +222,37 @@ class SyncService {
     fromFirebaseDoc: (isar, doc) async {
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return null;
-      
+
       Id? isarId;
       if (doc.id.startsWith('CLAP_')) {
         isarId = int.tryParse(doc.id.replaceFirst('CLAP_', ''));
       }
-      
+
       Clap? local;
       if (isarId != null) local = await isar.claps.get(isarId);
-      local ??= await isar.claps.filter()
-          .nombreClapEqualTo(data['nombreClap'] as String).findFirst();
-      
+      local ??= await isar.claps
+          .filter()
+          .nombreClapEqualTo(data['nombreClap'] as String)
+          .findFirst();
+
       if (local != null && !local.isSynced) return null;
-      
+
       final clap = local ?? Clap();
       clap.nombreClap = data['nombreClap'] as String;
-      
+
       // Buscar jefe de comunidad
       final jefeCedula = data['jefeComunidadCedula'] as int?;
       if (jefeCedula != null) {
-        final jefe = await isar.habitantes.filter().cedulaEqualTo(jefeCedula).findFirst();
+        final jefe = await isar.habitantes
+            .filter()
+            .cedulaEqualTo(jefeCedula)
+            .findFirst();
         if (jefe != null) clap.jefeComunidad.value = jefe;
       }
       return clap;
     },
-    getPendingItems: (isar) => isar.claps.filter().isSyncedEqualTo(false).findAll(),
+    getPendingItems: (isar) =>
+        isar.claps.filter().isSyncedEqualTo(false).findAll(),
     saveItem: (isar, item) => isar.claps.put(item),
     loadRelations: (clap) => clap.jefeComunidad.load(),
     saveRelations: (isar, item) async {
@@ -233,7 +263,8 @@ class SyncService {
   /// Configuración para sincronizar Proyectos.
   SyncConfig<Proyecto> get _proyectoConfig => SyncConfig<Proyecto>(
     firebaseCollection: 'proyectos',
-    getDocumentId: (p) => 'PROJ_${p.id}_${p.nombreProyecto.replaceAll(' ', '')}',
+    getDocumentId: (p) =>
+        'PROJ_${p.id}_${p.nombreProyecto.replaceAll(' ', '')}',
     toFirebaseMap: (p) => {
       'nombreProyecto': p.nombreProyecto,
       'tipoObra': p.tipoObra,
@@ -244,15 +275,19 @@ class SyncService {
     fromFirebaseDoc: (isar, doc) async {
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return null;
-      
+
       final nombreProyecto = data['nombreProyecto'] as String? ?? '';
-      final local = await isar.proyectos.filter().nombreProyectoEqualTo(nombreProyecto).findFirst();
+      final local = await isar.proyectos
+          .filter()
+          .nombreProyectoEqualTo(nombreProyecto)
+          .findFirst();
       if (local != null && !local.isSynced) return null;
-      
+
       final proyecto = local ?? Proyecto();
       proyecto.nombreProyecto = nombreProyecto;
       proyecto.tipoObra = data['tipoObra'] as String? ?? '';
-      proyecto.montoAprobado = (data['montoAprobado'] as num?)?.toDouble() ?? 0.0;
+      proyecto.montoAprobado =
+          (data['montoAprobado'] as num?)?.toDouble() ?? 0.0;
       proyecto.estatus = EstatusObra.values.firstWhere(
         (e) => e.name == (data['estatus'] as String? ?? 'PorIniciar'),
         orElse: () => EstatusObra.PorIniciar,
@@ -260,7 +295,8 @@ class SyncService {
       proyecto.transformacion = (data['transformacion'] as num?)?.toInt() ?? 1;
       return proyecto;
     },
-    getPendingItems: (isar) => isar.proyectos.filter().isSyncedEqualTo(false).findAll(),
+    getPendingItems: (isar) =>
+        isar.proyectos.filter().isSyncedEqualTo(false).findAll(),
     saveItem: (isar, item) => isar.proyectos.put(item),
   );
 
@@ -272,20 +308,32 @@ class SyncService {
 
   /// Sincroniza todos los datos en orden lógico (BIDIRECCIONAL).
   ///
+  /// [profunda]: si true, sincroniza todo (sube pendientes y descarga habitantes y extranjeros).
+  /// Si false (sincronización rápida): sube todo lo pendiente (incl. habitantes no cargados a la nube)
+  /// pero omite la descarga de habitantes y extranjeros; descarga el resto (comunas, consejos, CLAPs, solicitudes, control y seguimiento, etc.).
   /// [onProgress] se invoca en cada paso para actualizar la barra de progreso.
   Future<Map<String, int>> sincronizarTodo({
+    bool profunda = true,
     void Function(SyncProgress)? onProgress,
   }) async {
-    final report = (String phase, String stepLabel, int step, {int subidos = 0, int descargados = 0}) {
-      onProgress?.call(SyncProgress(
-        phase: phase,
-        stepLabel: stepLabel,
-        currentStep: step,
-        totalSteps: _totalSyncSteps,
-        subidos: subidos,
-        descargados: descargados,
-      ));
-    };
+    void report(
+      String phase,
+      String stepLabel,
+      int step, {
+      int subidos = 0,
+      int descargados = 0,
+    }) {
+      onProgress?.call(
+        SyncProgress(
+          phase: phase,
+          stepLabel: stepLabel,
+          currentStep: step,
+          totalSteps: _totalSyncSteps,
+          subidos: subidos,
+          descargados: descargados,
+        ),
+      );
+    }
 
     // 1. Verificar Internet
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -301,23 +349,71 @@ class SyncService {
       report('subiendo', 'Subiendo comunas...', 1);
 
       totalSubidos += await _syncHelper.uploadPending(_comunaConfig);
-      report('subiendo', 'Subiendo consejos comunales...', 2, subidos: totalSubidos);
+      report(
+        'subiendo',
+        'Subiendo consejos comunales...',
+        2,
+        subidos: totalSubidos,
+      );
       totalSubidos += await _syncHelper.uploadPending(_consejoConfig);
-      report('subiendo', 'Subiendo organizaciones...', 3, subidos: totalSubidos);
+      report(
+        'subiendo',
+        'Subiendo organizaciones...',
+        3,
+        subidos: totalSubidos,
+      );
       totalSubidos += await _syncHelper.uploadPending(_organizacionConfig);
       report('subiendo', 'Subiendo CLAPs...', 4, subidos: totalSubidos);
       totalSubidos += await _syncHelper.uploadPending(_clapConfig);
-      report('subiendo', 'Subiendo habitantes...', 5, subidos: totalSubidos);
+      // Sinc. rápida y profunda: subir habitantes pendientes (no cargados a la nube).
+      // Solo la sinc. profunda descarga habitantes.
+      report(
+        'subiendo',
+        'Subiendo habitantes pendientes...',
+        5,
+        subidos: totalSubidos,
+      );
       totalSubidos += await _syncHabitantes();
+      report(
+        'subiendo',
+        'Subiendo extranjeros pendientes...',
+        5,
+        subidos: totalSubidos,
+      );
+      totalSubidos += await _syncExtranjeros();
       report('subiendo', 'Subiendo proyectos...', 6, subidos: totalSubidos);
       totalSubidos += await _syncHelper.uploadPending(_proyectoConfig);
       report('subiendo', 'Subiendo solicitudes...', 7, subidos: totalSubidos);
       totalSubidos += await _syncSolicitudes();
       report('subiendo', 'Subiendo bitácora...', 8, subidos: totalSubidos);
       totalSubidos += await _syncBitacora();
+      report(
+        'subiendo',
+        'Subiendo control y seguimiento...',
+        8,
+        subidos: totalSubidos,
+      );
+      totalSubidos += await _syncControlSeguimientoUpload();
+      final repoControl = ControlSeguimientoRepository();
+      final mediaSync = ControlSeguimientoMediaSyncService();
+      final listControl = await repoControl.getAll();
+      if (listControl.isNotEmpty) {
+        report(
+          'subiendo',
+          'Subiendo fotos y documentos (control y seguimiento)...',
+          8,
+          subidos: totalSubidos,
+        );
+        await mediaSync.uploadMediaForRegistros(listControl);
+      }
 
       AppLogger.info('Descargando cambios desde la nube...');
-      report('descargando', 'Descargando tablas maestras...', 9, subidos: totalSubidos);
+      report(
+        'descargando',
+        'Descargando tablas maestras...',
+        9,
+        subidos: totalSubidos,
+      );
 
       final fase1 = await Future.wait([
         _syncHelper.downloadWithPagination(_comunaConfig),
@@ -325,67 +421,241 @@ class SyncService {
         _syncHelper.downloadWithPagination(_proyectoConfig),
       ]);
       totalDescargados += fase1[0] + fase1[1] + fase1[2];
-      report('descargando', 'Descargando consejos y habitantes...', 10, subidos: totalSubidos, descargados: totalDescargados);
+      report(
+        'descargando',
+        profunda
+            ? 'Descargando consejos y habitantes...'
+            : 'Descargando consejos (sinc. rápida)...',
+        10,
+        subidos: totalSubidos,
+        descargados: totalDescargados,
+      );
 
       final fase2 = await Future.wait([
         _syncHelper.downloadWithPagination(_consejoConfig),
-        _downloadHabitantes(),
+        profunda ? _downloadHabitantes() : Future<int>.value(0),
       ]);
       totalDescargados += fase2[0] + fase2[1];
-      report('descargando', 'Descargando CLAPs y solicitudes...', 11, subidos: totalSubidos, descargados: totalDescargados);
+      report(
+        'descargando',
+        'Descargando CLAPs, solicitudes y control y seguimiento...',
+        11,
+        subidos: totalSubidos,
+        descargados: totalDescargados,
+      );
 
       final fase3 = await Future.wait([
         _syncHelper.downloadWithPagination(_clapConfig),
         _downloadSolicitudes(),
+        _downloadControlSeguimiento(),
       ]);
-      totalDescargados += fase3[0] + fase3[1];
+      totalDescargados += fase3[0] + fase3[1] + fase3[2];
 
-      AppLogger.info('Sincronización completada: $totalSubidos subidos, $totalDescargados descargados');
+      final listControlAfter = await repoControl.getAll();
+      if (listControlAfter.isNotEmpty) {
+        report(
+          'descargando',
+          'Descargando fotos y documentos (control y seguimiento)...',
+          11,
+          subidos: totalSubidos,
+          descargados: totalDescargados,
+        );
+        final mediaDescargados = await mediaSync.downloadMediaForRegistros(
+          listControlAfter,
+        );
+        AppLogger.info(
+          'Medios de control y seguimiento descargados: $mediaDescargados archivos',
+        );
+      }
+
+      AppLogger.info(
+        'Sincronización completada: $totalSubidos subidos, $totalDescargados descargados',
+      );
     } catch (e, stackTrace) {
       // Detectar error de cuota excedida
       final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('resource_exhausted') || 
+      if (errorStr.contains('resource_exhausted') ||
           errorStr.contains('quota exceeded') ||
           (errorStr.contains('quota') && errorStr.contains('exceeded'))) {
-        
         // Contar registros pendientes
         final isar = await DbHelper().db;
-        final pendientes = await isar.habitantes.filter().isSyncedEqualTo(false).count();
-        
+        final pendientes = await isar.habitantes
+            .filter()
+            .isSyncedEqualTo(false)
+            .count();
+
         AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA');
         AppLogger.info('Registros subidos antes del error: $totalSubidos');
         AppLogger.info('Registros pendientes: $pendientes');
-        
+
         throw QuotaExceededException(
           'Se ha excedido la cuota diaria de Firebase. Intente nuevamente mañana.',
           registrosSubidos: totalSubidos,
           registrosPendientes: pendientes,
         );
       }
-      
+
       AppLogger.error('Error durante sincronización', e, stackTrace);
       rethrow;
     }
 
-    return {
-      'subidos': totalSubidos,
-      'descargados': totalDescargados,
-    };
+    return {'subidos': totalSubidos, 'descargados': totalDescargados};
   }
-  
+
   /// Obtiene el conteo de registros pendientes por sincronizar
   Future<Map<String, int>> obtenerPendientes() async {
     final isar = await DbHelper().db;
-    
+
     return {
-      'habitantes': await isar.habitantes.filter().isSyncedEqualTo(false).count(),
+      'habitantes': await isar.habitantes
+          .filter()
+          .isSyncedEqualTo(false)
+          .count(),
       'comunas': await isar.comunas.filter().isSyncedEqualTo(false).count(),
-      'consejos': await isar.consejoComunals.filter().isSyncedEqualTo(false).count(),
-      'organizaciones': await isar.organizacions.filter().isSyncedEqualTo(false).count(),
+      'consejos': await isar.consejoComunals
+          .filter()
+          .isSyncedEqualTo(false)
+          .count(),
+      'organizaciones': await isar.organizacions
+          .filter()
+          .isSyncedEqualTo(false)
+          .count(),
       'claps': await isar.claps.filter().isSyncedEqualTo(false).count(),
       'proyectos': await isar.proyectos.filter().isSyncedEqualTo(false).count(),
-      'solicitudes': await isar.solicituds.filter().isSyncedEqualTo(false).count(),
+      'solicitudes': await isar.solicituds
+          .filter()
+          .isSyncedEqualTo(false)
+          .count(),
+      'extranjeros': await isar.extranjeros
+          .filter()
+          .isSyncedEqualTo(false)
+          .count(),
     };
+  }
+
+  /// Sube un solo registro pendiente a la nube. Retorna true si se subió correctamente.
+  Future<bool> uploadSingleComuna(Comuna item) =>
+      _syncHelper.uploadSingle(_comunaConfig, item);
+  Future<bool> uploadSingleConsejoComunal(ConsejoComunal item) =>
+      _syncHelper.uploadSingle(_consejoConfig, item);
+  Future<bool> uploadSingleOrganizacion(Organizacion item) =>
+      _syncHelper.uploadSingle(_organizacionConfig, item);
+  Future<bool> uploadSingleClap(Clap item) =>
+      _syncHelper.uploadSingle(_clapConfig, item);
+  Future<bool> uploadSingleProyecto(Proyecto item) =>
+      _syncHelper.uploadSingle(_proyectoConfig, item);
+
+  /// Sube un solo habitante pendiente a la nube.
+  Future<bool> uploadSingleHabitante(Habitante h) async {
+    final isar = await DbHelper().db;
+    final docRef = _firestore.collection('habitantes').doc(h.cedula.toString());
+    try {
+      if (h.isDeleted) {
+        final snap = await docRef.get();
+        if (snap.exists) await docRef.delete();
+      } else {
+        final data = {
+          'cedula': h.cedula,
+          'nacionalidad': h.nacionalidad.name,
+          'nombreCompleto': h.nombreCompleto,
+          'telefono': h.telefono,
+          'fechaNacimiento': Timestamp.fromDate(h.fechaNacimiento),
+          'genero': h.genero.name,
+          'direccion': h.direccion,
+          'estatusPolitico': h.estatusPolitico.name,
+          'nivelVoto': h.nivelVoto.name,
+          'nivelUsuario': h.nivelUsuario,
+          'fotoUrl': h.fotoUrl,
+          'ultimaActualizacion': FieldValue.serverTimestamp(),
+        };
+        await docRef.set(data, SetOptions(merge: true));
+      }
+      h.isSynced = true;
+      await isar.writeTxn(() async => await isar.habitantes.put(h));
+      return true;
+    } catch (e) {
+      AppLogger.warning('Error subiendo habitante ${h.cedula}: $e');
+      return false;
+    }
+  }
+
+  /// Sube un solo extranjero pendiente a la nube.
+  Future<bool> uploadSingleExtranjero(Extranjero e) async {
+    final isar = await DbHelper().db;
+    final docRef = _firestore
+        .collection('extranjeros')
+        .doc(e.cedulaColombiana.toString());
+    try {
+      if (e.isDeleted) {
+        final snap = await docRef.get();
+        if (snap.exists) await docRef.delete();
+      } else {
+        final data = {
+          'cedulaColombiana': e.cedulaColombiana,
+          'nombreCompleto': e.nombreCompleto,
+          'telefono': e.telefono,
+          'email': e.email,
+          'direccion': e.direccion,
+          'departamento': e.departamento,
+          'municipio': e.municipio,
+          'esNacionalizado': e.esNacionalizado,
+          'cedulaVenezolana': e.cedulaVenezolana,
+          'nivelSisben': e.nivelSisben,
+          'ultimaActualizacion': FieldValue.serverTimestamp(),
+        };
+        await docRef.set(data, SetOptions(merge: true));
+      }
+      e.isSynced = true;
+      await isar.writeTxn(() async => await isar.extranjeros.put(e));
+      return true;
+    } catch (err) {
+      AppLogger.warning(
+        'Error subiendo extranjero ${e.cedulaColombiana}: $err',
+      );
+      return false;
+    }
+  }
+
+  /// Sube una sola solicitud pendiente a la nube.
+  Future<bool> uploadSingleSolicitud(Solicitud s) async {
+    final isar = await DbHelper().db;
+    await s.comuna.load();
+    await s.consejoComunal.load();
+    await s.ubch.load();
+    await s.creador.load();
+    final docRef = _firestore.collection('solicitudes').doc('SOL_${s.id}');
+    try {
+      if (s.isDeleted) {
+        final snap = await docRef.get();
+        if (snap.exists) await docRef.delete();
+      } else {
+        final data = {
+          'idSolicitud': s.idSolicitud,
+          'comunaId': s.comuna.value?.id,
+          'comunaNombre': s.comuna.value?.nombreComuna,
+          'consejoComunalId': s.consejoComunal.value?.id,
+          'consejoComunalNombre': s.consejoComunal.value?.nombreConsejo,
+          'comunidad': s.comunidad,
+          'ubchId': s.ubch.value?.id,
+          'ubchNombre': s.ubch.value?.nombreLargo,
+          'creadorCedula': s.creador.value?.cedula,
+          'creadorNombre': s.creador.value?.nombreCompleto,
+          'tipoSolicitud': s.tipoSolicitud.name,
+          'otrosTipoSolicitud': s.otrosTipoSolicitud,
+          'descripcion': s.descripcion,
+          'cantidadLamparas': s.cantidadLamparas,
+          'cantidadBombillos': s.cantidadBombillos,
+          'ultimaActualizacion': FieldValue.serverTimestamp(),
+        };
+        await docRef.set(data, SetOptions(merge: true));
+      }
+      s.isSynced = true;
+      await isar.writeTxn(() async => await isar.solicituds.put(s));
+      return true;
+    } catch (e) {
+      AppLogger.warning('Error subiendo solicitud ${s.id}: $e');
+      return false;
+    }
   }
 
   // ============================================================================
@@ -394,15 +664,18 @@ class SyncService {
 
   Future<int> _syncHabitantes() async {
     final isar = await DbHelper().db;
-    
+
     // Primero contar cuántos hay pendientes (rápido)
-    final totalPendientes = await isar.habitantes.filter().isSyncedEqualTo(false).count();
+    final totalPendientes = await isar.habitantes
+        .filter()
+        .isSyncedEqualTo(false)
+        .count();
     if (totalPendientes == 0) return 0;
 
     int count = 0;
     const batchSize = AppConstants.batchSize;
     int offset = 0;
-    
+
     // Procesar en lotes sin cargar todos en memoria
     while (offset < totalPendientes) {
       // Obtener solo el lote actual
@@ -412,13 +685,17 @@ class SyncService {
           .offset(offset)
           .limit(batchSize)
           .findAll();
-      
+
       if (lote.isEmpty) break;
-      
+
       final batch = _firestore.batch();
       final paraMarcar = <Habitante>[];
 
-      final docRefs = lote.map((h) => _firestore.collection('habitantes').doc(h.cedula.toString())).toList();
+      final docRefs = lote
+          .map(
+            (h) => _firestore.collection('habitantes').doc(h.cedula.toString()),
+          )
+          .toList();
       final snapshots = await Future.wait(docRefs.map((ref) => ref.get()));
 
       for (int j = 0; j < lote.length; j++) {
@@ -449,7 +726,9 @@ class SyncService {
             'ultimaActualizacion': FieldValue.serverTimestamp(),
           };
 
-          docSnapshot.exists ? batch.update(docRef, data) : batch.set(docRef, data);
+          docSnapshot.exists
+              ? batch.update(docRef, data)
+              : batch.set(docRef, data);
           paraMarcar.add(h);
           count++;
         } catch (e) {
@@ -460,14 +739,18 @@ class SyncService {
       await _commitHabitantesBatch(isar, batch, paraMarcar);
       offset += batchSize;
     }
-    
+
     AppLogger.debug('_syncHabitantes: Subidos $count habitantes');
     return count;
   }
 
-  Future<void> _commitHabitantesBatch(Isar isar, WriteBatch batch, List<Habitante> items) async {
+  Future<void> _commitHabitantesBatch(
+    Isar isar,
+    WriteBatch batch,
+    List<Habitante> items,
+  ) async {
     if (items.isEmpty) return;
-    
+
     try {
       await batch.commit();
       await isar.writeTxn(() async {
@@ -479,18 +762,22 @@ class SyncService {
     } catch (e) {
       // Detectar error de cuota excedida
       final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('resource_exhausted') || 
+      if (errorStr.contains('resource_exhausted') ||
           errorStr.contains('quota exceeded') ||
           errorStr.contains('quota') && errorStr.contains('exceeded')) {
-        AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA - Deteniendo sincronización');
+        AppLogger.warning(
+          '⚠️ CUOTA DE FIREBASE EXCEDIDA - Deteniendo sincronización',
+        );
         rethrow; // Propagar para que sincronizarTodo lo maneje
       }
-      
+
       AppLogger.error('Error en batch de habitantes', e);
       // Fallback: intentar uno por uno
       for (var h in items) {
         try {
-          final docRef = _firestore.collection('habitantes').doc(h.cedula.toString());
+          final docRef = _firestore
+              .collection('habitantes')
+              .doc(h.cedula.toString());
           final data = {
             'cedula': h.cedula,
             'nacionalidad': h.nacionalidad.name,
@@ -513,11 +800,14 @@ class SyncService {
         } catch (e2) {
           // También verificar cuota en fallback
           final errorStr2 = e2.toString().toLowerCase();
-          if (errorStr2.contains('resource_exhausted') || errorStr2.contains('quota')) {
+          if (errorStr2.contains('resource_exhausted') ||
+              errorStr2.contains('quota')) {
             AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA en fallback');
             rethrow;
           }
-          AppLogger.warning('Error subiendo habitante ${h.cedula} (fallback): $e2');
+          AppLogger.warning(
+            'Error subiendo habitante ${h.cedula} (fallback): $e2',
+          );
         }
       }
     }
@@ -546,10 +836,14 @@ class SyncService {
         for (var doc in snapshot.docs) {
           try {
             final data = doc.data();
-            final cedula = (data['cedula'] as num?)?.toInt() ?? int.tryParse(doc.id) ?? 0;
+            final cedula =
+                (data['cedula'] as num?)?.toInt() ?? int.tryParse(doc.id) ?? 0;
             if (cedula == 0) continue;
 
-            final local = await isar.habitantes.filter().cedulaEqualTo(cedula).findFirst();
+            final local = await isar.habitantes
+                .filter()
+                .cedulaEqualTo(cedula)
+                .findFirst();
             if (local != null && !local.isSynced) continue;
 
             final habitante = local ?? Habitante();
@@ -562,17 +856,21 @@ class SyncService {
             habitante.telefono = data['telefono'] as String;
             habitante.direccion = data['direccion'] as String? ?? '';
             habitante.fotoUrl = data['fotoUrl'] as String?;
-            habitante.nivelUsuario = (data['nivelUsuario'] as num?)?.toInt() ?? 1;
+            habitante.nivelUsuario =
+                (data['nivelUsuario'] as num?)?.toInt() ??
+                1; // 1=Invitado por defecto
 
             final fechaNacTimestamp = data['fechaNacimiento'] as Timestamp?;
-            habitante.fechaNacimiento = fechaNacTimestamp?.toDate() ?? AppConstants.defaultBirthDate;
+            habitante.fechaNacimiento =
+                fechaNacTimestamp?.toDate() ?? AppConstants.defaultBirthDate;
 
             habitante.genero = Genero.values.firstWhere(
               (g) => g.name == (data['genero'] as String? ?? 'Masculino'),
               orElse: () => Genero.Masculino,
             );
             habitante.estatusPolitico = EstatusPolitico.values.firstWhere(
-              (e) => e.name == (data['estatusPolitico'] as String? ?? 'Neutral'),
+              (e) =>
+                  e.name == (data['estatusPolitico'] as String? ?? 'Neutral'),
               orElse: () => EstatusPolitico.Neutral,
             );
             habitante.nivelVoto = NivelVoto.values.firstWhere(
@@ -607,20 +905,176 @@ class SyncService {
   }
 
   // ============================================================================
-  // SOLICITUDES (Caso especial por múltiples relaciones)
+  // EXTRANJEROS
   // ============================================================================
 
-  Future<int> _syncSolicitudes() async {
+  Future<int> _syncExtranjeros() async {
     final isar = await DbHelper().db;
-    
-    // Primero contar cuántos hay pendientes (rápido)
-    final totalPendientes = await isar.solicituds.filter().isSyncedEqualTo(false).count();
+
+    final totalPendientes = await isar.extranjeros
+        .filter()
+        .isSyncedEqualTo(false)
+        .count();
     if (totalPendientes == 0) return 0;
 
     int count = 0;
     const batchSize = AppConstants.batchSize;
     int offset = 0;
-    
+
+    while (offset < totalPendientes) {
+      final lote = await isar.extranjeros
+          .filter()
+          .isSyncedEqualTo(false)
+          .offset(offset)
+          .limit(batchSize)
+          .findAll();
+
+      if (lote.isEmpty) break;
+
+      final batch = _firestore.batch();
+      final paraMarcar = <Extranjero>[];
+
+      final docRefs = lote
+          .map(
+            (e) => _firestore
+                .collection('extranjeros')
+                .doc(e.cedulaColombiana.toString()),
+          )
+          .toList();
+      final snapshots = await Future.wait(docRefs.map((ref) => ref.get()));
+
+      for (int j = 0; j < lote.length; j++) {
+        final ext = lote[j];
+        final docRef = docRefs[j];
+        final docSnapshot = snapshots[j];
+
+        try {
+          if (ext.isDeleted) {
+            if (docSnapshot.exists) batch.delete(docRef);
+            paraMarcar.add(ext);
+            count++;
+            continue;
+          }
+
+          final data = {
+            'cedulaColombiana': ext.cedulaColombiana,
+            'nombreCompleto': ext.nombreCompleto,
+            'telefono': ext.telefono,
+            'email': ext.email,
+            'direccion': ext.direccion,
+            'departamento': ext.departamento,
+            'municipio': ext.municipio,
+            'esNacionalizado': ext.esNacionalizado,
+            'cedulaVenezolana': ext.cedulaVenezolana,
+            'nivelSisben': ext.nivelSisben,
+            'ultimaActualizacion': FieldValue.serverTimestamp(),
+          };
+
+          docSnapshot.exists
+              ? batch.update(docRef, data)
+              : batch.set(docRef, data);
+          paraMarcar.add(ext);
+          count++;
+        } catch (e) {
+          AppLogger.warning(
+            'Error preparando extranjero ${ext.cedulaColombiana}: $e',
+          );
+        }
+      }
+
+      await _commitExtranjerosBatch(isar, batch, paraMarcar);
+      offset += batchSize;
+    }
+
+    AppLogger.debug('_syncExtranjeros: Subidos $count extranjeros');
+    return count;
+  }
+
+  Future<void> _commitExtranjerosBatch(
+    Isar isar,
+    WriteBatch batch,
+    List<Extranjero> items,
+  ) async {
+    if (items.isEmpty) return;
+
+    try {
+      await batch.commit();
+      await isar.writeTxn(() async {
+        for (var e in items) {
+          e.isSynced = true;
+          await isar.extranjeros.put(e);
+        }
+      });
+    } catch (e) {
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('resource_exhausted') ||
+          errorStr.contains('quota exceeded') ||
+          errorStr.contains('quota') && errorStr.contains('exceeded')) {
+        AppLogger.warning(
+          '⚠️ CUOTA DE FIREBASE EXCEDIDA - Deteniendo sincronización',
+        );
+        rethrow;
+      }
+
+      AppLogger.error('Error en batch de extranjeros', e);
+      for (var ext in items) {
+        try {
+          final docRef = _firestore
+              .collection('extranjeros')
+              .doc(ext.cedulaColombiana.toString());
+          final data = {
+            'cedulaColombiana': ext.cedulaColombiana,
+            'nombreCompleto': ext.nombreCompleto,
+            'telefono': ext.telefono,
+            'email': ext.email,
+            'direccion': ext.direccion,
+            'departamento': ext.departamento,
+            'municipio': ext.municipio,
+            'esNacionalizado': ext.esNacionalizado,
+            'cedulaVenezolana': ext.cedulaVenezolana,
+            'nivelSisben': ext.nivelSisben,
+            'ultimaActualizacion': FieldValue.serverTimestamp(),
+          };
+          await docRef.set(data, SetOptions(merge: true));
+          await isar.writeTxn(() async {
+            ext.isSynced = true;
+            await isar.extranjeros.put(ext);
+          });
+        } catch (e2) {
+          final errorStr2 = e2.toString().toLowerCase();
+          if (errorStr2.contains('resource_exhausted') ||
+              errorStr2.contains('quota')) {
+            AppLogger.warning(
+              '⚠️ CUOTA DE FIREBASE EXCEDIDA en fallback (Extranjeros)',
+            );
+            rethrow;
+          }
+          AppLogger.warning(
+            'Error subiendo extranjero ${ext.cedulaColombiana} (fallback): $e2',
+          );
+        }
+      }
+    }
+  }
+
+  // ============================================================================
+  // SOLICITUDES (Caso especial por múltiples relaciones)
+  // ============================================================================
+
+  Future<int> _syncSolicitudes() async {
+    final isar = await DbHelper().db;
+
+    // Primero contar cuántos hay pendientes (rápido)
+    final totalPendientes = await isar.solicituds
+        .filter()
+        .isSyncedEqualTo(false)
+        .count();
+    if (totalPendientes == 0) return 0;
+
+    int count = 0;
+    const batchSize = AppConstants.batchSize;
+    int offset = 0;
+
     // Procesar en lotes sin cargar todos en memoria
     while (offset < totalPendientes) {
       // Obtener solo el lote actual
@@ -630,20 +1084,24 @@ class SyncService {
           .offset(offset)
           .limit(batchSize)
           .findAll();
-      
+
       if (lote.isEmpty) break;
       final batch = _firestore.batch();
       final paraMarcar = <Solicitud>[];
 
       // Cargar todas las relaciones
-      await Future.wait(lote.map((s) async {
-        await s.comuna.load();
-        await s.consejoComunal.load();
-        await s.ubch.load();
-        await s.creador.load();
-      }));
+      await Future.wait(
+        lote.map((s) async {
+          await s.comuna.load();
+          await s.consejoComunal.load();
+          await s.ubch.load();
+          await s.creador.load();
+        }),
+      );
 
-      final docRefs = lote.map((s) => _firestore.collection('solicitudes').doc('SOL_${s.id}')).toList();
+      final docRefs = lote
+          .map((s) => _firestore.collection('solicitudes').doc('SOL_${s.id}'))
+          .toList();
       final snapshots = await Future.wait(docRefs.map((ref) => ref.get()));
 
       for (int j = 0; j < lote.length; j++) {
@@ -678,7 +1136,9 @@ class SyncService {
             'ultimaActualizacion': FieldValue.serverTimestamp(),
           };
 
-          docSnapshot.exists ? batch.update(docRef, data) : batch.set(docRef, data);
+          docSnapshot.exists
+              ? batch.update(docRef, data)
+              : batch.set(docRef, data);
           paraMarcar.add(s);
           count++;
         } catch (e) {
@@ -689,11 +1149,15 @@ class SyncService {
       await _commitSolicitudesBatch(isar, batch, paraMarcar);
       offset += batchSize;
     }
-    
+
     return count;
   }
 
-  Future<void> _commitSolicitudesBatch(Isar isar, WriteBatch batch, List<Solicitud> items) async {
+  Future<void> _commitSolicitudesBatch(
+    Isar isar,
+    WriteBatch batch,
+    List<Solicitud> items,
+  ) async {
     if (items.isEmpty) return;
     try {
       await batch.commit();
@@ -704,6 +1168,14 @@ class SyncService {
         }
       });
     } catch (e) {
+      // Detectar error de cuota excedida
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('resource_exhausted') ||
+          errorStr.contains('quota exceeded') ||
+          errorStr.contains('quota') && errorStr.contains('exceeded')) {
+        AppLogger.warning('⚠️ CUOTA DE FIREBASE EXCEDIDA en solicitudes');
+        rethrow;
+      }
       AppLogger.error('Error en batch de solicitudes', e);
     }
   }
@@ -734,40 +1206,67 @@ class SyncService {
             final idSolicitud = (data['idSolicitud'] as num?)?.toInt();
             if (idSolicitud == null) continue;
 
-            final local = await isar.solicituds.filter().idSolicitudEqualTo(idSolicitud).findFirst();
+            final local = await isar.solicituds
+                .filter()
+                .idSolicitudEqualTo(idSolicitud)
+                .findFirst();
             if (local != null && !local.isSynced) continue;
 
             final comunaId = (data['comunaId'] as num?)?.toInt();
-            final consejoComunalId = (data['consejoComunalId'] as num?)?.toInt();
+            final consejoComunalId = (data['consejoComunalId'] as num?)
+                ?.toInt();
             final ubchId = (data['ubchId'] as num?)?.toInt();
             final creadorCedula = (data['creadorCedula'] as num?)?.toInt();
 
-            Comuna? comuna = comunaId != null ? await isar.comunas.get(comunaId) : null;
+            Comuna? comuna = comunaId != null
+                ? await isar.comunas.get(comunaId)
+                : null;
             comuna ??= data['comunaNombre'] != null
-                ? await isar.comunas.filter().nombreComunaEqualTo(data['comunaNombre'] as String).findFirst()
+                ? await isar.comunas
+                      .filter()
+                      .nombreComunaEqualTo(data['comunaNombre'] as String)
+                      .findFirst()
                 : null;
 
-            ConsejoComunal? consejo = consejoComunalId != null ? await isar.consejoComunals.get(consejoComunalId) : null;
+            ConsejoComunal? consejo = consejoComunalId != null
+                ? await isar.consejoComunals.get(consejoComunalId)
+                : null;
             consejo ??= data['consejoComunalNombre'] != null
-                ? await isar.consejoComunals.filter().nombreConsejoEqualTo(data['consejoComunalNombre'] as String).findFirst()
+                ? await isar.consejoComunals
+                      .filter()
+                      .nombreConsejoEqualTo(
+                        data['consejoComunalNombre'] as String,
+                      )
+                      .findFirst()
                 : null;
 
-            Organizacion? ubch = ubchId != null ? await isar.organizacions.get(ubchId) : null;
+            Organizacion? ubch = ubchId != null
+                ? await isar.organizacions.get(ubchId)
+                : null;
             ubch ??= data['ubchNombre'] != null
-                ? await isar.organizacions.filter().nombreLargoEqualTo(data['ubchNombre'] as String).findFirst()
+                ? await isar.organizacions
+                      .filter()
+                      .nombreLargoEqualTo(data['ubchNombre'] as String)
+                      .findFirst()
                 : null;
 
             Habitante? creador = creadorCedula != null
-                ? await isar.habitantes.filter().cedulaEqualTo(creadorCedula).findFirst()
+                ? await isar.habitantes
+                      .filter()
+                      .cedulaEqualTo(creadorCedula)
+                      .findFirst()
                 : null;
 
             final solicitud = local ?? Solicitud();
             solicitud.idSolicitud = idSolicitud;
             solicitud.comunidad = data['comunidad'] as String? ?? '';
             solicitud.descripcion = data['descripcion'] as String? ?? '';
-            solicitud.cantidadLamparas = (data['cantidadLamparas'] as num?)?.toInt();
-            solicitud.cantidadBombillos = (data['cantidadBombillos'] as num?)?.toInt();
-            solicitud.otrosTipoSolicitud = data['otrosTipoSolicitud'] as String?;
+            solicitud.cantidadLamparas = (data['cantidadLamparas'] as num?)
+                ?.toInt();
+            solicitud.cantidadBombillos = (data['cantidadBombillos'] as num?)
+                ?.toInt();
+            solicitud.otrosTipoSolicitud =
+                data['otrosTipoSolicitud'] as String?;
             solicitud.tipoSolicitud = TipoSolicitud.values.firstWhere(
               (t) => t.name == (data['tipoSolicitud'] as String? ?? 'Otros'),
               orElse: () => TipoSolicitud.Otros,
@@ -810,14 +1309,103 @@ class SyncService {
   }
 
   // ============================================================================
+  // CONTROL Y SEGUIMIENTO (JSON local <-> Firestore, sinc. rápida)
+  // ============================================================================
+
+  static const String _controlSeguimientoCollection = 'controlSeguimiento';
+
+  /// Convierte Timestamp de Firestore a String ISO para que fromJson no falle.
+  Map<String, dynamic> _normalizeControlSeguimientoData(
+    Map<String, dynamic> data,
+  ) {
+    final out = Map<String, dynamic>.from(data);
+    for (final key in ['fecha', 'semanaInicio', 'semanaFin']) {
+      final v = out[key];
+      if (v is Timestamp) {
+        out[key] = v.toDate().toIso8601String();
+      }
+    }
+    return out;
+  }
+
+  Future<int> _syncControlSeguimientoUpload() async {
+    final repo = ControlSeguimientoRepository();
+    final list = await repo.getAll();
+    if (list.isEmpty) return 0;
+    int count = 0;
+    const batchSize = 400;
+    for (int i = 0; i < list.length; i += batchSize) {
+      final batch = _firestore.batch();
+      final lote = list.skip(i).take(batchSize);
+      for (final r in lote) {
+        final ref = _firestore
+            .collection(_controlSeguimientoCollection)
+            .doc('CS_${r.id}');
+        batch.set(ref, r.toJson());
+        count++;
+      }
+      await batch.commit();
+    }
+    return count;
+  }
+
+  Future<int> _downloadControlSeguimiento() async {
+    final repo = ControlSeguimientoRepository();
+    final remotos = <ControlSeguimiento>[];
+    DocumentSnapshot? lastDoc;
+    const pageSize = AppConstants.downloadPageSize;
+
+    try {
+      while (true) {
+        firestore.Query<Map<String, dynamic>> query = _firestore
+            .collection(_controlSeguimientoCollection)
+            .limit(pageSize);
+        if (lastDoc != null) {
+          query = query.startAfterDocument(lastDoc);
+        }
+        final snapshot = await query.get().timeout(AppConstants.networkTimeout);
+        if (snapshot.docs.isEmpty) break;
+
+        for (final doc in snapshot.docs) {
+          try {
+            final data = doc.data();
+            if (data.isEmpty) continue;
+            final normalized = _normalizeControlSeguimientoData(
+              Map<String, dynamic>.from(data),
+            );
+            final r = ControlSeguimiento.fromJson(normalized);
+            remotos.add(r);
+          } catch (e) {
+            AppLogger.warning(
+              'Error parseando control seguimiento ${doc.id}: $e',
+            );
+          }
+        }
+        lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+        if (snapshot.docs.length < pageSize) break;
+      }
+
+      if (remotos.isNotEmpty) {
+        await repo.mergeFromRemote(remotos);
+      }
+    } catch (e) {
+      AppLogger.error('Error descargando control y seguimiento', e);
+    }
+    return remotos.length;
+  }
+
+  // ============================================================================
   // BITÁCORA (Solo subida - auditoría)
   // ============================================================================
 
   Future<int> _syncBitacora() async {
     final isar = await DbHelper().db;
-    
+
     // Primero contar cuántos hay pendientes (rápido)
-    final totalPendientes = await isar.bitacoras.filter().isSyncedEqualTo(false).count();
+    final totalPendientes = await isar.bitacoras
+        .filter()
+        .isSyncedEqualTo(false)
+        .count();
     if (totalPendientes == 0) return 0;
 
     int count = 0;
@@ -834,21 +1422,22 @@ class SyncService {
           .offset(offset)
           .limit(batchSize)
           .findAll();
-      
+
       if (lote.isEmpty) break;
-      
+
       final batch = _firestore.batch();
 
       for (var log in lote) {
         await log.usuarioResponsable.load();
-        
+
         final docRef = _firestore.collection('auditoria_logs').doc();
         batch.set(docRef, {
           'fechaHora': Timestamp.fromDate(log.fechaHora),
           'accion': log.accion,
           'tablaAfectada': log.tablaAfectada,
           'detalles': log.detalles,
-          'usuarioResponsable': log.usuarioResponsable.value?.nombreCompleto ?? 'Desconocido',
+          'usuarioResponsable':
+              log.usuarioResponsable.value?.nombreCompleto ?? 'Desconocido',
           'usuarioCedula': log.usuarioResponsable.value?.cedula ?? 0,
         });
         paraMarcar.add(log);
@@ -864,10 +1453,10 @@ class SyncService {
           }
         });
       }
-      
+
       offset += batchSize;
     }
-    
+
     return count;
   }
 

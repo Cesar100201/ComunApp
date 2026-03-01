@@ -68,8 +68,9 @@ class ExtranjeroRepository {
   Future<Extranjero?> getByCedulaColombiana(int cedula) async {
     return await _isar.extranjeros
         .filter()
-        .cedulaColombianaEqualTo(cedula)
         .isDeletedEqualTo(false)
+        .and()
+        .cedulaColombianaEqualTo(cedula)
         .findFirst();
   }
 

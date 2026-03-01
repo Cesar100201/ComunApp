@@ -1,21 +1,151 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../local/presentation/local_menu_page.dart';
 import '../../registros/presentation/registros_menu_page.dart';
-import '../../solicitudes/presentation/solicitudes_menu_page.dart';
-import '../../reportes/presentation/reportes_main_page.dart';
+import '../../gestion_municipal/presentation/gestion_municipal_menu_page.dart';
+import '../../formacion/presentation/formacion_menu_page.dart';
+import '../../profile/presentation/profile_page.dart';
+import '../../settings/presentation/settings_page.dart';
+import '../../notifications/presentation/notifications_page.dart';
 import '../../../../core/services/notification_service.dart';
-import '../../../../core/services/sync_service.dart' show SyncService, SyncProgress;
+import '../../../../core/services/sync_service.dart'
+    show SyncService, SyncProgress;
+import '../../../../core/services/settings_service.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/constants.dart' show QuotaExceededException;
+import '../../../../core/widgets/module_action_card.dart';
+import '../../../../core/widgets/drawer_tile.dart';
+import '../../../../core/utils/constants.dart'
+    show AppConstants, QuotaExceededException;
 import '../../../../main.dart' show firebaseInitialized;
+import 'sync_dialogs.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key, this.onSettingsChanged});
 
-  /// Inicia la sincronización en segundo plano. El progreso se muestra como
-  /// notificación fija (no eliminable) en la barra de notificaciones.
-  Future<void> _startSyncInBackground(BuildContext context) async {
+  /// Se invoca cuando el usuario cambia tema o escala en Configuración.
+  final VoidCallback? onSettingsChanged;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Timer? _autoSyncTimer;
+  bool _formacionModuleEnabled = true;
+  int _nivelUsuario = AppConstants.nivelInvitado;
+  final UserRoleService _roleService = UserRoleService();
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoSyncTimer();
+    _loadFormacionModuleEnabled();
+    _loadNivelUsuario();
+  }
+
+  Future<void> _loadNivelUsuario() async {
+    final nivel = await _roleService.getNivelUsuario();
+    if (mounted) setState(() => _nivelUsuario = nivel);
+  }
+
+  Future<void> _loadFormacionModuleEnabled() async {
+    final enabled = await SettingsService.getFormacionModuleEnabled();
+    if (mounted) setState(() => _formacionModuleEnabled = enabled);
+  }
+
+  @override
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    super.dispose();
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  SINCRONIZACIÓN AUTOMÁTICA
+  // ══════════════════════════════════════════════════════════════
+
+  /// Inicia el timer de sincronización automática si está activada en configuración.
+  Future<void> _startAutoSyncTimer() async {
+    _autoSyncTimer?.cancel();
+    final enabled = await SettingsService.getAutoSyncEnabled();
+    if (!enabled || !firebaseInitialized) return;
+    final minutes = await SettingsService.getSyncIntervalMinutes();
+    final duration = Duration(minutes: minutes);
+    _autoSyncTimer = Timer.periodic(duration, (_) => _runAutoSync());
+  }
+
+  /// Ejecuta una sincronización automática (respetando solo Wi‑Fi si está activo).
+  Future<void> _runAutoSync() async {
+    final enabled = await SettingsService.getAutoSyncEnabled();
+    if (!enabled) {
+      _autoSyncTimer?.cancel();
+      return;
+    }
+    if (!firebaseInitialized) return;
+    final wifiOnly = await SettingsService.getWifiOnlySync();
+    if (wifiOnly) {
+      final result = await Connectivity().checkConnectivity();
+      final isWifi =
+          result.contains(ConnectivityResult.wifi) ||
+          result.contains(ConnectivityResult.ethernet);
+      if (!isWifi) return;
+    }
+    final notifications = NotificationService();
+    try {
+      await notifications.ensureReady();
+      await notifications.showSyncProgressNotification(
+        progress: 0,
+        stepLabel: 'Sincronización automática...',
+      );
+    } catch (_) {
+      return;
+    }
+    final service = SyncService();
+    service
+        .sincronizarTodo(
+          profunda: false,
+          onProgress: (SyncProgress p) {
+            notifications.showSyncProgressNotification(
+              progress: (p.progress * 100).round().clamp(0, 100),
+              stepLabel: p.stepLabel,
+              subidos: p.subidos,
+              descargados: p.descargados,
+            );
+          },
+        )
+        .then((resultado) async {
+          final subidos = resultado['subidos'] ?? 0;
+          final descargados = resultado['descargados'] ?? 0;
+          final showNotif =
+              await SettingsService.getSyncCompleteNotifications();
+          if (showNotif) {
+            await notifications.showSyncCompleteNotification(
+              subidos: subidos,
+              descargados: descargados,
+            );
+          }
+        })
+        .catchError((Object e, _) async {
+          await notifications.showSyncErrorNotification(
+            e is QuotaExceededException
+                ? 'Cuota de Firebase excedida. Intente mañana.'
+                : e.toString(),
+          );
+        });
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  SINCRONIZACIÓN MANUAL (BACKGROUND)
+  // ══════════════════════════════════════════════════════════════
+
+  /// Inicia la sincronización en segundo plano con notificaciones de progreso.
+  Future<void> _startSyncInBackground(
+    BuildContext context, {
+    required bool profunda,
+  }) async {
     final notifications = NotificationService();
     try {
       await notifications.ensureReady();
@@ -26,8 +156,10 @@ class HomePage extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pueden mostrar notificaciones. Active las notificaciones en ajustes.'),
+          const SnackBar(
+            content: Text(
+              'No se pueden mostrar notificaciones. Active las notificaciones en ajustes.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -36,110 +168,85 @@ class HomePage extends StatelessWidget {
     }
 
     final servicio = SyncService();
-    servicio.sincronizarTodo(
-      onProgress: (SyncProgress p) {
-        final percent = (p.progress * 100).round().clamp(0, 100);
-        notifications.showSyncProgressNotification(
-          progress: percent,
-          stepLabel: p.stepLabel,
-          subidos: p.subidos,
-          descargados: p.descargados,
-        );
-      },
-    ).then((resultado) async {
-      final subidos = resultado['subidos'] ?? 0;
-      final descargados = resultado['descargados'] ?? 0;
-      await notifications.showSyncCompleteNotification(
-        subidos: subidos,
-        descargados: descargados,
-      );
-      if (context.mounted) {
-        if (subidos > 0 || descargados > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "✅ Sincronización completa: $subidos subidos, $descargados descargados.",
-              ),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 4),
-            ),
+    servicio
+        .sincronizarTodo(
+          profunda: profunda,
+          onProgress: (SyncProgress p) {
+            final percent = (p.progress * 100).round().clamp(0, 100);
+            notifications.showSyncProgressNotification(
+              progress: percent,
+              stepLabel: p.stepLabel,
+              subidos: p.subidos,
+              descargados: p.descargados,
+            );
+          },
+        )
+        .then((resultado) async {
+          final subidos = resultado['subidos'] ?? 0;
+          final descargados = resultado['descargados'] ?? 0;
+          await notifications.showSyncCompleteNotification(
+            subidos: subidos,
+            descargados: descargados,
           );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("👍 Todo está al día. Datos sincronizados."),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    }).catchError((Object e, StackTrace _) async {
-      await notifications.showSyncErrorNotification(
-        e is QuotaExceededException
-            ? 'Cuota de Firebase excedida. Intente mañana.'
-            : e.toString(),
-      );
-      if (context.mounted) {
-        if (e is QuotaExceededException) {
-          final q = e as QuotaExceededException;
-          showDialog(
-            context: context,
-            builder: (dialogContext) => AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
-                  const SizedBox(width: 12),
-                  const Expanded(child: Text('Cuota de Firebase Excedida')),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Se ha alcanzado el límite diario de escrituras en Firebase.',
-                    style: TextStyle(fontWeight: FontWeight.w500),
+          if (context.mounted) {
+            if (subidos > 0 || descargados > 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    "✅ Sincronización completa: $subidos subidos, $descargados descargados.",
                   ),
-                  const SizedBox(height: 16),
-                  if (q.registrosSubidos != null)
-                    Text('✓ Subidos: ${q.registrosSubidos}', style: TextStyle(color: AppColors.success)),
-                  if (q.registrosPendientes != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text('⏳ Pendientes: ${q.registrosPendientes}', style: TextStyle(color: AppColors.warning)),
-                    ),
-                  const SizedBox(height: 16),
-                  const Text('• La cuota se reinicia cada 24 h\n• Intente sincronizar mañana'),
-                ],
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('ENTENDIDO'),
+                  backgroundColor: AppColors.success,
+                  duration: const Duration(seconds: 4),
                 ),
-              ],
-            ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("👍 Todo está al día. Datos sincronizados."),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          }
+        })
+        .catchError((Object e, StackTrace _) async {
+          await notifications.showSyncErrorNotification(
+            e is QuotaExceededException
+                ? 'Cuota de Firebase excedida. Intente mañana.'
+                : e.toString(),
           );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("❌ Error: ${e.toString()}"),
-              backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
-      }
-    });
+          if (context.mounted) {
+            if (e is QuotaExceededException) {
+              SyncDialogs.showQuotaExceededDialog(
+                context,
+                registrosSubidos: e.registrosSubidos,
+                registrosPendientes: e.registrosPendientes,
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("❌ Error: ${e.toString()}"),
+                  backgroundColor: AppColors.error,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
+          }
+        });
   }
 
+  // ══════════════════════════════════════════════════════════════
+  //  SESIÓN
+  // ══════════════════════════════════════════════════════════════
+
   Future<void> _logout(BuildContext context) async {
-    // Verificar si Firebase está disponible
     if (!firebaseInitialized) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('La aplicación está en modo offline. No hay sesión activa.'),
+            content: Text(
+              'La aplicación está en modo offline. No hay sesión activa.',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -147,7 +254,6 @@ class HomePage extends StatelessWidget {
       return;
     }
 
-    // Mostrar diálogo de confirmación
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -167,14 +273,50 @@ class HomePage extends StatelessWidget {
     );
 
     if (confirmar == true) {
-      // Solo hacer signOut - el StreamBuilder en main.dart
-      // detectará el cambio y navegará al LoginPage automáticamente
       await FirebaseAuth.instance.signOut();
     }
   }
 
+  Future<void> _requestDeepSyncAsInvited(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      await FirebaseFirestore.instance.collection('deepSyncRequests').add({
+        'userId': user.uid,
+        'email': user.email ?? 'Sin correo',
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Su solicitud ha sido enviada. Un administrador la revisará.',
+            ),
+            backgroundColor: AppColors.success,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar solicitud: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  BUILD
+  // ══════════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
         title: const Column(
@@ -188,65 +330,199 @@ class HomePage extends StatelessWidget {
           ],
         ),
         actions: [
-          // Solo mostrar botón de logout si Firebase está disponible
-          if (firebaseInitialized)
+          if (_roleService.canApproveDeepSync(_nivelUsuario))
             IconButton(
-              icon: const Icon(Icons.exit_to_app),
-              onPressed: () => _logout(context),
-              tooltip: "Cerrar sesión",
-            )
-          else
-            // Indicador de modo offline
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsPage(),
+                  ),
+                );
+              },
+              tooltip: 'Notificaciones',
+            ),
+          if (!firebaseInitialized)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
               child: Chip(
-                avatar: const Icon(Icons.cloud_off, size: 16, color: Colors.white),
-                label: const Text('Offline', style: TextStyle(color: Colors.white, fontSize: 12)),
-                backgroundColor: Colors.orange,
+                avatar: Icon(Icons.cloud_off, size: 16, color: Colors.white),
+                label: Text(
+                  'Offline',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+                backgroundColor: AppColors.warning,
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
               ),
             ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      drawer: _buildDrawer(context, user),
+      body: _buildModuleList(context),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, User? user) {
+    return Drawer(
+      child: Column(
         children: [
-          // Encabezado
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Text(
-              "Módulos de Gestión",
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.textPrimary,
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: MediaQuery.of(context).padding.top + 16,
+              bottom: 20,
+            ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    size: 28,
+                    color: Colors.white,
                   ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  user?.displayName ?? 'Usuario',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  user?.email ?? 'Sin sesión',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-
-          // MÓDULO 1: BASE DE DATOS LOCAL
-          _buildModuleCard(
-            context,
-            title: "Base de Datos Local",
-            description: "Ver y gestionar todos los registros locales.",
-            icon: Icons.storage_rounded,
-            color: AppColors.primary,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LocalMenuPage(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              children: [
+                DrawerTile(
+                  icon: Icons.person_rounded,
+                  title: 'Perfil',
+                  subtitle: 'Ver y editar tu información',
+                  color: AppModulePastel.habitantes,
+                  colorAccent: AppModulePastel.habitantesAccent,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProfilePage(
+                          onSettingsChanged: widget.onSettingsChanged,
+                          onSyncSettingsChanged: _startAutoSyncTimer,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
+                DrawerTile(
+                  icon: Icons.settings_rounded,
+                  title: 'Configuración',
+                  subtitle: 'Ajustes de la aplicación',
+                  color: AppModulePastel.sincronizacion,
+                  colorAccent: AppModulePastel.sincronizacionAccent,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SettingsPage(
+                          onSettingsChanged: widget.onSettingsChanged,
+                          onSyncSettingsChanged: _startAutoSyncTimer,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (firebaseInitialized) ...[
+                  const Divider(height: 24, indent: 20, endIndent: 20),
+                  DrawerTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Cerrar sesión',
+                    subtitle: 'Salir de tu cuenta',
+                    color: AppColors.error,
+                    colorAccent: AppColors.error,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _logout(context);
+                    },
+                  ),
+                ],
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // MÓDULO 2: REGISTROS
-          _buildModuleCard(
-            context,
+  Widget _buildModuleList(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // Encabezado
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Text(
+            "Módulos de Gestión",
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+
+        // MÓDULO 1: BASE DE DATOS LOCAL
+        ModuleActionCard(
+          title: "Base de Datos Local",
+          subtitle: "Ver y gestionar todos los registros locales.",
+          icon: Icons.storage_rounded,
+          color: AppModulePastel.baseDatos,
+          colorAccent: AppModulePastel.baseDatosAccent,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const LocalMenuPage()),
+            );
+          },
+        ),
+
+        // MÓDULO 2: REGISTROS (solo admin y generador)
+        if (_roleService.canAccessRegistros(_nivelUsuario))
+          ModuleActionCard(
             title: "Registros",
-            description: "Gestionar habitantes, comunas, consejos comunales, organizaciones y CLAPs.",
+            subtitle:
+                "Gestionar habitantes, comunas, consejos comunales, organizaciones y CLAPs.",
             icon: Icons.app_registration_rounded,
-            color: AppColors.primary,
+            color: AppModulePastel.registros,
+            colorAccent: AppModulePastel.registrosAccent,
             onTap: () {
               Navigator.push(
                 context,
@@ -256,128 +532,69 @@ class HomePage extends StatelessWidget {
               );
             },
           ),
+        if (_roleService.canAccessRegistros(_nivelUsuario))
+          const SizedBox(height: 12),
 
-          // MÓDULO 3: GESTIÓN DE SOLICITUDES
-          _buildModuleCard(
-            context,
-            title: "Gestión de Solicitudes",
-            description: "Registrar y administrar solicitudes de luminarias.",
-            icon: Icons.lightbulb_outline_rounded,
-            color: AppColors.info,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SolicitudesMenuPage(),
-                ),
-              );
-            },
-          ),
-
-          // MÓDULO 4: REPORTES
-          _buildModuleCard(
-            context,
-            title: "Módulo de Reportes",
-            description: "Reportar soluciones y consultar estadísticas municipales.",
-            icon: Icons.assignment_turned_in_rounded,
-            color: AppColors.success,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ReportesMainPage(),
-                ),
-              );
-            },
-          ),
-
-          // MÓDULO 5: SINCRONIZACIÓN
-          _buildModuleCard(
-            context,
-            title: "Centro de Sincronización",
-            description: "Sincronizar datos bidireccionalmente entre local y nube.",
-            icon: Icons.cloud_upload_rounded,
-            color: AppColors.primaryDark,
-            onTap: () async {
-              if (!context.mounted) return;
-              await _startSyncInBackground(context);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // WIDGET DE TARJETA HORIZONTAL (Diseño minimalista y futurista)
-  Widget _buildModuleCard(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icono con fondo degradado
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [color, color.withOpacity(0.8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppColors.shadowSmall,
-                ),
-                child: Icon(icon, size: 24, color: Colors.white),
+        // MÓDULO 3: GESTIÓN MUNICIPAL
+        ModuleActionCard(
+          title: "Gestión Municipal",
+          subtitle: "Solicitudes, reportes y administración municipal.",
+          icon: Icons.apartment_rounded,
+          color: AppModulePastel.gestionMunicipal,
+          colorAccent: AppModulePastel.gestionMunicipalAccent,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const GestionMunicipalMenuPage(),
               ),
-              const SizedBox(width: 16),
-
-              // Textos
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.4,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 16,
-                color: AppColors.textTertiary,
-              ),
-            ],
-          ),
+            );
+          },
         ),
-      ),
+
+        // MÓDULO 4: FORMACIÓN
+        if (_formacionModuleEnabled)
+          ModuleActionCard(
+            title: "Formación",
+            subtitle: "Cursos, talleres y capacitaciones.",
+            icon: Icons.school_rounded,
+            color: AppModulePastel.formacion,
+            colorAccent: AppModulePastel.formacionAccent,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FormacionMenuPage(),
+                ),
+              );
+            },
+          ),
+
+        // MÓDULO 5: SINCRONIZACIÓN
+        ModuleActionCard(
+          title: "Centro de Sincronización",
+          subtitle: "Sincronizar datos bidireccionalmente entre local y nube.",
+          icon: Icons.cloud_upload_rounded,
+          color: AppModulePastel.sincronizacion,
+          colorAccent: AppModulePastel.sincronizacionAccent,
+          onTap: () async {
+            if (!context.mounted) return;
+            if (_roleService.canRunDeepSyncDirectly(_nivelUsuario)) {
+              final tipo = await SyncDialogs.showSyncTypeDialog(context);
+              if (!context.mounted || tipo == null) return;
+              await _startSyncInBackground(context, profunda: tipo);
+            } else {
+              final ok = await SyncDialogs.showInvitedSyncDialog(context);
+              if (!context.mounted) return;
+              if (ok == true) {
+                await _startSyncInBackground(context, profunda: false);
+              } else if (ok == false) {
+                await _requestDeepSyncAsInvited(context);
+              }
+            }
+          },
+        ),
+      ],
     );
   }
 }

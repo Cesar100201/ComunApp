@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/clap_repository.dart';
 import '../../inhabitants/data/repositories/habitante_repository.dart';
@@ -33,11 +34,16 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
   
   Habitante? _jefeEncontrado;
   bool _isBuscandoJefe = false;
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorios();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _inicializarRepositorios() async {
@@ -92,8 +98,8 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
     if (cedulaInt == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Cédula inválida"),
+          const SnackBar(
+            content: Text("Cédula inválida"),
             backgroundColor: AppColors.error,
           ),
         );
@@ -116,8 +122,8 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
 
       if (habitante == null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("No se encontró el habitante"),
+          const SnackBar(
+            content: Text("No se encontró el habitante"),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -150,8 +156,8 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ CLAP actualizado con éxito"),
+            const SnackBar(
+              content: Text("✅ CLAP actualizado con éxito"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -205,8 +211,8 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text("✅ CLAP eliminado"),
+              const SnackBar(
+                content: Text("✅ CLAP eliminado"),
                 backgroundColor: AppColors.success,
               ),
             );
@@ -256,7 +262,7 @@ class _ClapProfilePageState extends State<ClapProfilePage> {
               },
               tooltip: "Cancelar",
             ),
-          if (!_isEditing)
+          if (!_isEditing && _canDelete)
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _eliminarClap,

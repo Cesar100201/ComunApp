@@ -12,19 +12,20 @@ class BulkUploadHabitantesPage extends StatefulWidget {
   const BulkUploadHabitantesPage({super.key});
 
   @override
-  State<BulkUploadHabitantesPage> createState() => _BulkUploadHabitantesPageState();
+  State<BulkUploadHabitantesPage> createState() =>
+      _BulkUploadHabitantesPageState();
 }
 
 class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
   File? _selectedFile;
   bool _isProcessing = false;
   bool _puedeMinimizar = false;
-  
+
   // Progreso
   int _totalProcessed = 0;
   int _currentProgress = 0;
   String _etiquetaProgreso = '';
-  
+
   // Resultados
   BulkUploadResult? _resultado;
 
@@ -43,7 +44,7 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
       // Crear archivo Excel
       final excel = Excel.createExcel();
       final sheet = excel['Habitantes'];
-      
+
       // Encabezados
       final headers = [
         'cedula',
@@ -65,37 +66,85 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
         'clap',
         'cedula jefe',
       ];
-      
+
       for (var i = 0; i < headers.length; i++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).value = TextCellValue(headers[i]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+            .value = TextCellValue(
+          headers[i],
+        );
       }
-      
+
       // Datos de ejemplo
       final datosEjemplo = [
-        ['12345678', 'JUAN CARLOS PÉREZ GONZÁLEZ', 'V', '04121234567', 'M', '15/03/1985', 'Táchira', 'García de Hevia', 'LaFria', 'Comuna Central', 'Consejo Central', 'Comunidad El Centro', 'Av. Bolívar', '15', 'Chavista', 'Duro', 'CLAP Centro', ''],
-        ['87654321', 'MARÍA JOSÉ GONZÁLEZ LÓPEZ', 'V', '04241234567', 'F', '20/07/1990', 'Táchira', 'García de Hevia', 'LaFria', 'Comuna Norte', 'Consejo Norte', 'Comunidad Los Mangos', 'Calle 5', '23', 'Neutral', 'Blando', 'CLAP Norte', ''],
+        [
+          '12345678',
+          'JUAN CARLOS PÉREZ GONZÁLEZ',
+          'V',
+          '04121234567',
+          'M',
+          '15/03/1985',
+          'Táchira',
+          'García de Hevia',
+          'LaFria',
+          'Comuna Central',
+          'Consejo Central',
+          'Comunidad El Centro',
+          'Av. Bolívar',
+          '15',
+          'Chavista',
+          'Duro',
+          'CLAP Centro',
+          '',
+        ],
+        [
+          '87654321',
+          'MARÍA JOSÉ GONZÁLEZ LÓPEZ',
+          'V',
+          '04241234567',
+          'F',
+          '20/07/1990',
+          'Táchira',
+          'García de Hevia',
+          'LaFria',
+          'Comuna Norte',
+          'Consejo Norte',
+          'Comunidad Los Mangos',
+          'Calle 5',
+          '23',
+          'Neutral',
+          'Blando',
+          'CLAP Norte',
+          '',
+        ],
       ];
-      
+
       for (var i = 0; i < datosEjemplo.length; i++) {
         for (var j = 0; j < datosEjemplo[i].length; j++) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: i + 1)).value = TextCellValue(datosEjemplo[i][j]);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: i + 1))
+              .value = TextCellValue(
+            datosEjemplo[i][j],
+          );
         }
       }
-      
+
       // Guardar archivo
       final directory = await getApplicationDocumentsDirectory();
       final path = '${directory.path}/plantilla_carga_masiva_habitantes.xlsx';
       final file = File(path);
       final bytes = excel.save();
       if (bytes != null) {
-        final uint8List = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+        final uint8List = bytes is Uint8List
+            ? bytes
+            : Uint8List.fromList(bytes);
         await file.writeAsBytes(uint8List);
-        
+
         if (mounted) {
           setState(() {
             _isProcessing = false;
           });
-          
+
           final result = await FilePicker.platform.saveFile(
             dialogTitle: 'Guardar plantilla Excel',
             fileName: 'plantilla_carga_masiva_habitantes.xlsx',
@@ -103,7 +152,7 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
             type: FileType.custom,
             allowedExtensions: ['xlsx'],
           );
-          
+
           if (result != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -128,7 +177,7 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
         setState(() {
           _isProcessing = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al generar plantilla: $e'),
@@ -168,7 +217,7 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
 
   Future<void> _procesarArchivo(File file) async {
     final extension = file.path.split('.').last.toLowerCase();
-    
+
     if (extension == 'csv') {
       // Convertir CSV a Excel primero para usar el mismo procesador
       await _procesarCSV(file);
@@ -177,8 +226,10 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Formato de archivo no soportado. Use Excel (.xlsx) o CSV (.csv)'),
+          const SnackBar(
+            content: Text(
+              'Formato de archivo no soportado. Use Excel (.xlsx) o CSV (.csv)',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -190,27 +241,30 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
     // CSV es ahora el formato recomendado para archivos grandes (10-50x más rápido)
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✓ CSV detectado - Procesamiento ultrarrápido activado'),
+        const SnackBar(
+          content: Text(
+            '✓ CSV detectado - Procesamiento ultrarrápido activado',
+          ),
           backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
     }
-    
+
     // Procesar CSV con el parser optimizado
     await _procesarExcel(file);
   }
 
   Future<void> _procesarExcel(File file) async {
     final notificationService = NotificationService();
-    
+
     if (!mounted) return;
     setState(() {
       _isProcessing = true;
       _puedeMinimizar = true;
       _currentProgress = 0;
-      _totalProcessed = 100; // Inicializar con un valor temporal hasta conocer el total real
+      _totalProcessed =
+          100; // Inicializar con un valor temporal hasta conocer el total real
       _etiquetaProgreso = 'Iniciando procesamiento...';
       _resultado = null;
     });
@@ -232,13 +286,14 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
             setState(() {
               _currentProgress = progreso;
               // Actualizar total solo si es mayor que 0 y mayor que el actual
-              if (total > 0 && (total > _totalProcessed || _totalProcessed == 100)) {
+              if (total > 0 &&
+                  (total > _totalProcessed || _totalProcessed == 100)) {
                 _totalProcessed = total;
               }
               _etiquetaProgreso = etiqueta;
             });
           }
-          
+
           // Actualizar notificación con el progreso
           notificationService.showProgressNotification(
             progress: progreso,
@@ -258,17 +313,17 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
           _totalProcessed = resultado.totalRows > 0 ? resultado.totalRows : 1;
           _etiquetaProgreso = 'Proceso completado';
         });
-        
+
         // Mostrar notificación de finalización
         await notificationService.showCompletionNotification(
           total: resultado.totalRows,
           successCount: resultado.successCount,
           errorCount: resultado.errorCount,
         );
-        
+
         // Esperar un momento para que la UI se actualice antes de mostrar el diálogo
         await Future.delayed(const Duration(milliseconds: 300));
-        
+
         if (mounted) {
           _mostrarResultados();
         }
@@ -276,14 +331,14 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
     } catch (e) {
       // Cancelar notificación de progreso en caso de error
       await notificationService.cancelProgressNotification();
-      
+
       if (mounted) {
         setState(() {
           _isProcessing = false;
           _puedeMinimizar = false;
           _etiquetaProgreso = 'Error en el procesamiento';
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al procesar archivo: $e'),
@@ -299,18 +354,18 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
     final total = _totalProcessed > 0 ? _totalProcessed : 1;
     final pct = (100.0 * _currentProgress / total).clamp(0.0, 100.0);
     final value = (_currentProgress / total).clamp(0.0, 1.0);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.primaryLight, width: 2),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -325,19 +380,24 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                 Expanded(
                   child: Row(
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _etiquetaProgreso.isNotEmpty ? _etiquetaProgreso : 'Procesando...',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          _etiquetaProgreso.isNotEmpty
+                              ? _etiquetaProgreso
+                              : 'Procesando...',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -347,7 +407,10 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(20),
@@ -355,9 +418,9 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                   child: Text(
                     '${pct.toStringAsFixed(1)}%',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -369,7 +432,9 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                 value: value,
                 minHeight: 14,
                 backgroundColor: AppColors.primaryUltraLight,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.primary,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -383,16 +448,22 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                       Text(
                         'Progreso: $_currentProgress / $_totalProcessed registros',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      if (_isProcessing && _currentProgress > 0 && _totalProcessed > 0) ...[
+                      if (_isProcessing &&
+                          _currentProgress > 0 &&
+                          _totalProcessed > 0) ...[
                         const SizedBox(height: 4),
                         Text(
                           '${pct.toStringAsFixed(1)}% completado',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary.withOpacity(0.7),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(alpha: 0.7),
                                 fontSize: 12,
                               ),
                         ),
@@ -407,15 +478,16 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                       Text(
                         '✓ ${_resultado!.successCount} guardados',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       if (_resultado!.errorCount > 0) ...[
                         const SizedBox(height: 2),
                         Text(
                           '⚠ ${_resultado!.errorCount} errores',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: AppColors.warning,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -431,16 +503,18 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                       Text(
                         'Procesados: $_currentProgress',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         'Restantes: ${_totalProcessed - _currentProgress}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary.withOpacity(0.7),
-                              fontSize: 11,
-                            ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -458,16 +532,20 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Puedes minimizar la app. El proceso continuará en segundo plano.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -482,11 +560,11 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
 
   void _mostrarResultados() {
     if (_resultado == null || !mounted) return;
-    
+
     // Usar addPostFrameCallback para asegurar que el diálogo se muestre después de que la UI se actualice
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      
+
       // Construir lista de errores como widgets simples (no ListView para evitar error de layout)
       final List<Widget> errorWidgets = [];
       if (_resultado!.errors.isNotEmpty) {
@@ -500,7 +578,7 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
           );
         }
       }
-      
+
       showDialog(
         context: context,
         barrierDismissible: true,
@@ -510,11 +588,16 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
             children: [
               Icon(
                 _resultado!.errorCount == 0 ? Icons.check_circle : Icons.info,
-                color: _resultado!.errorCount == 0 ? AppColors.success : AppColors.warning,
+                color: _resultado!.errorCount == 0
+                    ? AppColors.success
+                    : AppColors.warning,
               ),
               const SizedBox(width: 10),
               const Expanded(
-                child: Text('Proceso Completado', overflow: TextOverflow.ellipsis),
+                child: Text(
+                  'Proceso Completado',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -532,18 +615,27 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                   const SizedBox(height: 8),
                   Text(
                     'Habitantes guardados: ${_resultado!.successCount}',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.success),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.success,
+                    ),
                   ),
                   if (_resultado!.errorCount > 0) ...[
                     const SizedBox(height: 8),
                     Text(
                       'Errores: ${_resultado!.errorCount}',
-                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                   if (_resultado!.errors.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    const Text('Errores detallados:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Errores detallados:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     // Usar Column en lugar de ListView para evitar error de intrinsic dimensions
                     ...errorWidgets,
@@ -552,7 +644,10 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           '... y ${_resultado!.errors.length - 10} errores más',
-                          style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
                   ],
@@ -584,9 +679,7 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Carga Masiva de Habitantes'),
-      ),
+      appBar: AppBar(title: const Text('Carga Masiva de Habitantes')),
       body: Column(
         children: [
           // Información del formato
@@ -596,55 +689,66 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
             decoration: BoxDecoration(
               color: AppColors.primaryUltraLight,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primaryLight.withOpacity(0.3)),
+              border: Border.all(
+                color: AppColors.primaryLight.withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, color: AppColors.primary),
+                    const Icon(Icons.info_outline, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Text(
                       'Formato del Archivo',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '📌 CSV es 10-50x más rápido que Excel para archivos grandes. En Excel: Guardar como → CSV UTF-8.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Columnas obligatorias:\n• Cédula\n• Nombre Completo\n\nColumnas opcionales:\n• Nacionalidad (V o E)\n• Teléfono\n• Fecha Nacimiento (DD/MM/YYYY o formato Excel)\n• Género (M/F o Masculino/Femenino)\n• Estado, Municipio, Parroquia, Comuna\n• Calle, Número Casa\n• Estatus Político, Nivel Voto\n• CLAP, Consejo Comunal\n• Cédula Jefe (para cargas familiares)',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.5),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(height: 1.5),
                 ),
                 const SizedBox(height: 12),
                 // Comparativa de rendimiento CSV vs Excel
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppColors.info.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.compare_arrows, size: 16, color: AppColors.info),
+                          const Icon(
+                            Icons.compare_arrows,
+                            size: 16,
+                            color: AppColors.info,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Comparativa de formatos:',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.info,
                                 ),
@@ -655,16 +759,16 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                       Text(
                         '• CSV: ~5 seg para 10,000 registros ⚡',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.success,
-                              fontSize: 11,
-                            ),
+                          color: AppColors.success,
+                          fontSize: 11,
+                        ),
                       ),
                       Text(
                         '• Excel: ~2-5 min para 10,000 registros 🐢',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.warning,
-                              fontSize: 11,
-                            ),
+                          color: AppColors.warning,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -673,17 +777,22 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
+                    color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: AppColors.success),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppColors.success,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Puedes minimizar la app durante la carga. El proceso continúa en segundo plano.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: AppColors.success,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -706,11 +815,11 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
               label: const Text('DESCARGAR PLANTILLA EXCEL'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                side: BorderSide(color: AppColors.primary, width: 2),
+                side: const BorderSide(color: AppColors.primary, width: 2),
               ),
             ),
           ),
-          
+
           const SizedBox(height: 12),
 
           // Botón de selección de archivo
@@ -722,10 +831,17 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.upload_file),
-              label: Text(_selectedFile == null ? 'SELECCIONAR ARCHIVO EXCEL/CSV' : 'CAMBIAR ARCHIVO'),
+              label: Text(
+                _selectedFile == null
+                    ? 'SELECCIONAR ARCHIVO EXCEL/CSV'
+                    : 'CAMBIAR ARCHIVO',
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
               ),
@@ -739,12 +855,15 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.insert_drive_file, color: AppColors.primary),
+                    const Icon(
+                      Icons.insert_drive_file,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -772,12 +891,12 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _resultado!.errorCount == 0 
-                      ? AppColors.success.withOpacity(0.1)
-                      : AppColors.warning.withOpacity(0.1),
+                  color: _resultado!.errorCount == 0
+                      ? AppColors.success.withValues(alpha: 0.1)
+                      : AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _resultado!.errorCount == 0 
+                    color: _resultado!.errorCount == 0
                         ? AppColors.success
                         : AppColors.warning,
                   ),
@@ -788,15 +907,22 @@ class _BulkUploadHabitantesPageState extends State<BulkUploadHabitantesPage> {
                     Row(
                       children: [
                         Icon(
-                          _resultado!.errorCount == 0 ? Icons.check_circle : Icons.warning,
-                          color: _resultado!.errorCount == 0 ? AppColors.success : AppColors.warning,
+                          _resultado!.errorCount == 0
+                              ? Icons.check_circle
+                              : Icons.warning,
+                          color: _resultado!.errorCount == 0
+                              ? AppColors.success
+                              : AppColors.warning,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Proceso Finalizado',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: _resultado!.errorCount == 0 ? AppColors.success : AppColors.warning,
+                                color: _resultado!.errorCount == 0
+                                    ? AppColors.success
+                                    : AppColors.warning,
                               ),
                         ),
                       ],

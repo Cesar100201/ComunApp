@@ -8,15 +8,31 @@ part 'models.g.dart';
 // ==========================================
 
 enum Nacionalidad { V, E }
+
 enum Genero { Masculino, Femenino }
-enum EstatusPolitico { Chavista, Opositor, Neutral, OpositorSimpatizante, OpositorNacionalista }
+
+enum EstatusPolitico {
+  Chavista,
+  Opositor,
+  Neutral,
+  OpositorSimpatizante,
+  OpositorNacionalista,
+}
+
 enum NivelVoto { Duro, Blando, Opositor }
+
 enum TipoOrganizacion { Politico, Institucional, Social, Cultural, Deportiva }
+
 enum Ambito { Comunal, Parroquial, Municipal, Regional, Nacional }
+
 enum Parroquia { LaFria, BocaDeGrita, JoseAntonioPaez }
+
 enum TipoZona { Rural, Urbano, Mixto }
+
 enum EstatusObra { PorIniciar, EnEjecucion, Paralizada, Culminada }
+
 enum TipoSolicitud { Agua, Electrico, Iluminacion, Otros }
+
 enum EstatusReporte { Completo, Parcial }
 
 // ==========================================
@@ -46,12 +62,12 @@ class Habitante implements Syncable {
   late String nombreCompleto;
   late String telefono;
   late DateTime fechaNacimiento;
-  
+
   @Enumerated(EnumType.name)
   late Genero genero;
 
   late String direccion;
-  late String? fotoUrl; // URL de Firebase Storage
+  String? fotoUrl; // URL de Firebase Storage
 
   @Enumerated(EnumType.name)
   late EstatusPolitico estatusPolitico;
@@ -59,7 +75,7 @@ class Habitante implements Syncable {
   @Enumerated(EnumType.name)
   late NivelVoto nivelVoto;
 
-  late int nivelUsuario; // 1=Admin, 2=Catastro, etc.
+  late int nivelUsuario; // 1=Invitado, 2=Generador, 3=Administrador
 
   // --- RELACIONES ---
   final consejoComunal = IsarLink<ConsejoComunal>();
@@ -67,11 +83,13 @@ class Habitante implements Syncable {
 
   // NUEVO: Núcleo Familiar (Apunta al Jefe de Hogar)
   // Si este campo está vacío, asumimos que él es su propio jefe o vive solo.
-  final jefeDeFamilia = IsarLink<Habitante>(); 
-  
+  final jefeDeFamilia = IsarLink<Habitante>();
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -83,11 +101,14 @@ class Organizacion implements Syncable {
   late String? abreviacion;
   @Enumerated(EnumType.name)
   late TipoOrganizacion tipo;
-  late List<Cargo> cargos = []; // Lista de cargos disponibles en esta organización
-  
+  late List<Cargo> cargos =
+      []; // Lista de cargos disponibles en esta organización
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -101,11 +122,14 @@ class Vinculacion implements Syncable {
   late bool activo;
   final persona = IsarLink<Habitante>();
   final organizacion = IsarLink<Organizacion>();
-  final consejoComunal = IsarLink<ConsejoComunal>(); // Vinculación a consejo comunal (opcional)
-  
+  final consejoComunal =
+      IsarLink<ConsejoComunal>(); // Vinculación a consejo comunal (opcional)
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -122,12 +146,15 @@ class ConsejoComunal implements Syncable {
   late TipoZona tipoZona = TipoZona.Urbano;
   late double latitud;
   late double longitud;
-  late List<Cargo> cargos = []; // Lista de cargos de la estructura organizativa del consejo
+  late List<Cargo> cargos =
+      []; // Lista de cargos de la estructura organizativa del consejo
   final comuna = IsarLink<Comuna>();
-  
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -145,10 +172,12 @@ class Comuna implements Syncable {
   late Parroquia parroquia;
   late double latitud;
   late double longitud;
-  
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -163,11 +192,13 @@ class Proyecto implements Syncable {
   late EstatusObra estatus;
   late int transformacion; // 1 al 7
   final consejoBeneficiario = IsarLink<ConsejoComunal>();
-  final consejoEjecutor = IsarLink<ConsejoComunal>(); 
-  
+  final consejoEjecutor = IsarLink<ConsejoComunal>();
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -181,10 +212,12 @@ class SeguimientoObra implements Syncable {
   late String? evidenciaFotoUrl;
   final proyecto = IsarLink<Proyecto>();
   final inspector = IsarLink<Habitante>();
-  
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -194,10 +227,12 @@ class Clap implements Syncable {
   Id id = Isar.autoIncrement;
   late String nombreClap;
   final jefeComunidad = IsarLink<Habitante>();
-  
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -222,9 +257,11 @@ class Solicitud implements Syncable {
   int? cantidadLamparas;
   int? cantidadBombillos;
 
+  @override
   @Index()
   late bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -235,17 +272,19 @@ class Bitacora implements Syncable {
   Id id = Isar.autoIncrement;
 
   late DateTime fechaHora;
-  
+
   late String accion; // Ej: "Crear Proyecto", "Eliminar Usuario"
   late String tablaAfectada; // Ej: "Habitante", "Proyecto"
   late String detalles; // Descripción breve: "Cambió estatus a Opositor"
 
   // ¿Quién hizo la acción?
   final usuarioResponsable = IsarLink<Habitante>();
-  
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -256,29 +295,32 @@ class Reporte implements Syncable {
   Id id = Isar.autoIncrement;
 
   late DateTime fechaReporte;
-  
+
   @Enumerated(EnumType.name)
   late EstatusReporte estatusReporte; // Completo o Parcial
-  
+
   late int? luminariasEntregadas;
-  
-  late String descripcion; // Descripción detallada de lo que se hizo y no se hizo
-  
+
+  late String
+  descripcion; // Descripción detallada de lo que se hizo y no se hizo
+
   // Fotos del reporte (URLs de Firebase Storage o rutas locales)
   late List<String> fotosUrls = [];
-  
+
   // Relación con la solicitud reportada
   final solicitud = IsarLink<Solicitud>();
-  
+
   // Organizaciones vinculadas que participaron en la solución
   final organizacionesVinculadas = IsarLinks<Organizacion>();
-  
+
   // Usuario que creó el reporte
   final creador = IsarLink<Habitante>();
-  
+
+  @override
   @Index()
   bool isSynced = false;
-  
+
+  @override
   @Index()
   bool isDeleted = false;
 }
@@ -298,10 +340,13 @@ class Extranjero implements Syncable {
   int? cedulaVenezolana;
   late String departamento;
   late String municipio;
+  String? nivelSisben;
 
+  @override
   @Index()
   bool isSynced = false;
 
+  @override
   @Index()
   bool isDeleted = false;
 }

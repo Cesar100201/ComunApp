@@ -318,10 +318,12 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
   final _direccionController = TextEditingController();
   final _emailController = TextEditingController();
   final _cedulaVenezolanaController = TextEditingController();
+  final _nivelSisbenController = TextEditingController();
 
   String? _selectedDepartamento;
   String? _selectedMunicipio;
   bool _esNacionalizado = false;
+  bool _poseeSisben = false;
   bool _isSaving = false;
 
   List<String> get _municipiosFiltrados {
@@ -352,6 +354,7 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
     _direccionController.dispose();
     _emailController.dispose();
     _cedulaVenezolanaController.dispose();
+    _nivelSisbenController.dispose();
     super.dispose();
   }
 
@@ -360,8 +363,8 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
 
     if (_selectedDepartamento == null || _selectedDepartamento!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Seleccione un departamento'),
+        const SnackBar(
+          content: Text('Seleccione un departamento'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -369,32 +372,33 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
     }
     if (_selectedMunicipio == null || _selectedMunicipio!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Seleccione un municipio'),
+        const SnackBar(
+          content: Text('Seleccione un municipio'),
           backgroundColor: AppColors.warning,
         ),
       );
       return;
     }
 
-    if (_esNacionalizado &&
-        (_cedulaVenezolanaController.text.trim().isEmpty)) {
+    if (_esNacionalizado && (_cedulaVenezolanaController.text.trim().isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Si es nacionalizado debe indicar la cédula venezolana'),
+        const SnackBar(
+          content: Text(
+            'Si es nacionalizado debe indicar la cédula venezolana',
+          ),
           backgroundColor: AppColors.warning,
         ),
       );
       return;
     }
 
-    final cedulaColombiana =
-        int.tryParse(_cedulaColombianaController.text.trim());
+    final cedulaColombiana = int.tryParse(
+      _cedulaColombianaController.text.trim(),
+    );
     if (cedulaColombiana == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('La cédula colombiana debe ser un número válido'),
+        const SnackBar(
+          content: Text('La cédula colombiana debe ser un número válido'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -405,9 +409,10 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
     final existente = await _repo!.getByCedulaColombiana(cedulaColombiana);
     if (existente != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Ya existe un extranjero registrado con esta cédula colombiana'),
+        const SnackBar(
+          content: Text(
+            'Ya existe un extranjero registrado con esta cédula colombiana',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -432,14 +437,17 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
             : null
         ..departamento = _selectedDepartamento!
         ..municipio = _selectedMunicipio!
+        ..nivelSisben = _poseeSisben
+            ? _nivelSisbenController.text.trim().toUpperCase()
+            : null
         ..isSynced = false
         ..isDeleted = false;
 
       await _repo!.guardarExtranjero(e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Extranjero registrado con éxito'),
+        const SnackBar(
+          content: Text('Extranjero registrado con éxito'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -461,13 +469,11 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro de Extranjeros'),
-      ),
+      appBar: AppBar(title: const Text('Registro de Extranjeros')),
       body: Form(
         key: _formKey,
         child: Container(
-          color: AppColors.background,
+          color: Theme.of(context).colorScheme.surface,
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -516,6 +522,8 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
               _buildMunicipioDropdown(),
               const SizedBox(height: 24),
               _buildNacionalizadoSection(),
+              const SizedBox(height: 24),
+              _buildSisbenSection(),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -548,23 +556,37 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
   }
 
   Widget _buildHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryUltraLight,
+        color: isDark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : AppColors.primaryUltraLight,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: AppColors.primaryLight.withOpacity(0.3)),
+          color:
+              (isDark
+                      ? Theme.of(context).colorScheme.primary
+                      : AppColors.primaryLight)
+                  .withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.person_add, color: AppColors.primary, size: 28),
+            child: const Icon(
+              Icons.person_add,
+              color: AppColors.primary,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -574,16 +596,16 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
                 Text(
                   'Datos del extranjero',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Departamento y municipio según ubicación en Colombia',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -604,9 +626,11 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
     return TextFormField(
       controller: controller,
       keyboardType:
-          keyboardType ?? (isNumber ? TextInputType.number : TextInputType.text),
-      inputFormatters:
-          isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
+          keyboardType ??
+          (isNumber ? TextInputType.number : TextInputType.text),
+      inputFormatters: isNumber
+          ? [FilteringTextInputFormatter.digitsOnly]
+          : null,
       textCapitalization: TextCapitalization.words,
       validator: required
           ? (value) {
@@ -620,7 +644,7 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
         labelText: label,
         prefixIcon: Icon(icon, color: AppColors.primary),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
@@ -629,12 +653,12 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
   Widget _buildDepartamentoDropdown() {
     final departamentos = _DepartamentosColombia.departamentos;
     return DropdownButtonFormField<String>(
-      value: _selectedDepartamento,
+      initialValue: _selectedDepartamento,
       decoration: InputDecoration(
         labelText: 'Departamento',
-        prefixIcon: Icon(Icons.map, color: AppColors.primary),
+        prefixIcon: const Icon(Icons.map, color: AppColors.primary),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       items: [
@@ -662,12 +686,12 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
   Widget _buildMunicipioDropdown() {
     final municipios = _municipiosFiltrados;
     return DropdownButtonFormField<String>(
-      value: _selectedMunicipio,
+      initialValue: _selectedMunicipio,
       decoration: InputDecoration(
         labelText: 'Municipio',
-        prefixIcon: Icon(Icons.location_city, color: AppColors.primary),
+        prefixIcon: const Icon(Icons.location_city, color: AppColors.primary),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       items: [
@@ -697,46 +721,40 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.flag, color: AppColors.primary, size: 20),
+              const Icon(Icons.flag, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 '¿Es nacionalizado?',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: RadioListTile<bool>(
-                  title: const Text('Sí'),
-                  value: true,
-                  groupValue: _esNacionalizado,
-                  onChanged: (v) => setState(() => _esNacionalizado = true),
-                ),
-              ),
-              Expanded(
-                child: RadioListTile<bool>(
-                  title: const Text('No'),
-                  value: false,
-                  groupValue: _esNacionalizado,
-                  onChanged: (v) => setState(() => _esNacionalizado = false),
-                ),
-              ),
-            ],
+          RadioGroup<bool>(
+            groupValue: _esNacionalizado,
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => _esNacionalizado = v);
+              }
+            },
+            child: Column(
+              children: [
+                const RadioListTile<bool>(title: Text('Sí'), value: true),
+                const RadioListTile<bool>(title: Text('No'), value: false),
+              ],
+            ),
           ),
           if (_esNacionalizado) ...[
             const SizedBox(height: 16),
@@ -754,11 +772,94 @@ class _AddExtranjeroPageState extends State<AddExtranjeroPage> {
                   : null,
               decoration: InputDecoration(
                 labelText: 'Cédula venezolana',
-                prefixIcon: Icon(Icons.badge_outlined, color: AppColors.primary),
+                prefixIcon: const Icon(
+                  Icons.badge_outlined,
+                  color: AppColors.primary,
+                ),
                 filled: true,
-                fillColor: AppColors.surface,
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSisbenSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.health_and_safety,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Programa Sisbén',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          RadioGroup<bool>(
+            groupValue: _poseeSisben,
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => _poseeSisben = v);
+              }
+            },
+            child: Column(
+              children: [
+                const RadioListTile<bool>(title: Text('Sí'), value: true),
+                const RadioListTile<bool>(
+                  title: Text('No posee'),
+                  value: false,
+                ),
+              ],
+            ),
+          ),
+          if (_poseeSisben) ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _nivelSisbenController,
+              keyboardType: TextInputType.text,
+              validator: _poseeSisben
+                  ? (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Indique la clasificación del Sisbén';
+                      }
+                      return null;
+                    }
+                  : null,
+              decoration: InputDecoration(
+                labelText: 'Clasificación Sisbén',
+                hintText: 'Ej. B4, A1, C10',
+                prefixIcon: const Icon(
+                  Icons.assignment_ind,
+                  color: AppColors.primary,
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],

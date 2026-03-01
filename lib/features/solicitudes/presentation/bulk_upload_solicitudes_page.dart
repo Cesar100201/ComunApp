@@ -12,19 +12,20 @@ class BulkUploadSolicitudesPage extends StatefulWidget {
   const BulkUploadSolicitudesPage({super.key});
 
   @override
-  State<BulkUploadSolicitudesPage> createState() => _BulkUploadSolicitudesPageState();
+  State<BulkUploadSolicitudesPage> createState() =>
+      _BulkUploadSolicitudesPageState();
 }
 
 class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
   File? _selectedFile;
   bool _isProcessing = false;
   bool _puedeMinimizar = false;
-  
+
   // Progreso
   int _totalProcessed = 0;
   int _currentProgress = 0;
   String _etiquetaProgreso = '';
-  
+
   // Resultados
   BulkUploadResult? _resultado;
 
@@ -38,7 +39,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
       // Crear archivo Excel
       final excel = Excel.createExcel();
       final sheet = excel['Solicitudes'];
-      
+
       // Encabezados
       final headers = [
         'comuna',
@@ -51,37 +52,67 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
         'cantidad lamparas',
         'cantidad bombillos',
       ];
-      
+
       for (var i = 0; i < headers.length; i++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).value = TextCellValue(headers[i]);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+            .value = TextCellValue(
+          headers[i],
+        );
       }
-      
+
       // Datos de ejemplo
       final datosEjemplo = [
-        ['Comuna Central', 'Consejo Central', 'Comunidad El Centro', 'UBCH Central', '12345678', 'Iluminacion', 'Solicitud de luminarias para la comunidad', '10', '20'],
-        ['Comuna Norte', 'Consejo Norte', 'Comunidad Los Mangos', 'UBCH Norte', '87654321', 'Iluminacion', 'Instalación de postes de luz', '15', '30'],
+        [
+          'Comuna Central',
+          'Consejo Central',
+          'Comunidad El Centro',
+          'UBCH Central',
+          '12345678',
+          'Iluminacion',
+          'Solicitud de luminarias para la comunidad',
+          '10',
+          '20',
+        ],
+        [
+          'Comuna Norte',
+          'Consejo Norte',
+          'Comunidad Los Mangos',
+          'UBCH Norte',
+          '87654321',
+          'Iluminacion',
+          'Instalación de postes de luz',
+          '15',
+          '30',
+        ],
       ];
-      
+
       for (var i = 0; i < datosEjemplo.length; i++) {
         for (var j = 0; j < datosEjemplo[i].length; j++) {
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: i + 1)).value = TextCellValue(datosEjemplo[i][j]);
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: i + 1))
+              .value = TextCellValue(
+            datosEjemplo[i][j],
+          );
         }
       }
-      
+
       // Guardar archivo
       final directory = await getApplicationDocumentsDirectory();
       final path = '${directory.path}/plantilla_carga_masiva_solicitudes.xlsx';
       final file = File(path);
       final bytes = excel.save();
       if (bytes != null) {
-        final uint8List = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+        final uint8List = bytes is Uint8List
+            ? bytes
+            : Uint8List.fromList(bytes);
         await file.writeAsBytes(uint8List);
-        
+
         if (mounted) {
           setState(() {
             _isProcessing = false;
           });
-          
+
           final result = await FilePicker.platform.saveFile(
             dialogTitle: 'Guardar plantilla Excel',
             fileName: 'plantilla_carga_masiva_solicitudes.xlsx',
@@ -89,7 +120,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
             type: FileType.custom,
             allowedExtensions: ['xlsx'],
           );
-          
+
           if (result != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -114,7 +145,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
         setState(() {
           _isProcessing = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al generar plantilla: $e'),
@@ -154,7 +185,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
 
   Future<void> _procesarArchivo(File file) async {
     final extension = file.path.split('.').last.toLowerCase();
-    
+
     if (extension == 'csv') {
       await _procesarCSV(file);
     } else if (extension == 'xlsx' || extension == 'xls') {
@@ -162,8 +193,10 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Formato de archivo no soportado. Use Excel (.xlsx) o CSV (.csv)'),
+          const SnackBar(
+            content: Text(
+              'Formato de archivo no soportado. Use Excel (.xlsx) o CSV (.csv)',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -174,20 +207,22 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
   Future<void> _procesarCSV(File file) async {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✓ CSV detectado - Procesamiento ultrarrápido activado'),
+        const SnackBar(
+          content: Text(
+            '✓ CSV detectado - Procesamiento ultrarrápido activado',
+          ),
           backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: 2),
         ),
       );
     }
-    
+
     await _procesarExcel(file);
   }
 
   Future<void> _procesarExcel(File file) async {
     final notificationService = NotificationService();
-    
+
     if (!mounted) return;
     setState(() {
       _isProcessing = true;
@@ -206,27 +241,29 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
     );
 
     try {
-      final resultado = await BulkUploadSolicitudesService.procesarExcelEnSegundoPlano(
-        file.path,
-        (progreso, total, etiqueta) {
-          if (mounted) {
-            setState(() {
-              _currentProgress = progreso;
-              if (total > 0 && (total > _totalProcessed || _totalProcessed == 100)) {
-                _totalProcessed = total;
+      final resultado =
+          await BulkUploadSolicitudesService.procesarExcelEnSegundoPlano(
+            file.path,
+            (progreso, total, etiqueta) {
+              if (mounted) {
+                setState(() {
+                  _currentProgress = progreso;
+                  if (total > 0 &&
+                      (total > _totalProcessed || _totalProcessed == 100)) {
+                    _totalProcessed = total;
+                  }
+                  _etiquetaProgreso = etiqueta;
+                });
               }
-              _etiquetaProgreso = etiqueta;
-            });
-          }
-          
-          notificationService.showProgressNotification(
-            progress: progreso,
-            total: total > 0 ? total : _totalProcessed,
-            title: 'Carga Masiva de Solicitudes',
-            body: etiqueta,
+
+              notificationService.showProgressNotification(
+                progress: progreso,
+                total: total > 0 ? total : _totalProcessed,
+                title: 'Carga Masiva de Solicitudes',
+                body: etiqueta,
+              );
+            },
           );
-        },
-      );
 
       if (mounted) {
         setState(() {
@@ -237,29 +274,29 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
           _totalProcessed = resultado.totalRows > 0 ? resultado.totalRows : 1;
           _etiquetaProgreso = 'Proceso completado';
         });
-        
+
         await notificationService.showCompletionNotification(
           total: resultado.totalRows,
           successCount: resultado.successCount,
           errorCount: resultado.errorCount,
         );
-        
+
         await Future.delayed(const Duration(milliseconds: 300));
-        
+
         if (mounted) {
           _mostrarResultados();
         }
       }
     } catch (e) {
       await notificationService.cancelProgressNotification();
-      
+
       if (mounted) {
         setState(() {
           _isProcessing = false;
           _puedeMinimizar = false;
           _etiquetaProgreso = 'Error en el procesamiento';
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al procesar archivo: $e'),
@@ -275,7 +312,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
     final total = _totalProcessed > 0 ? _totalProcessed : 1;
     final pct = (100.0 * _currentProgress / total).clamp(0.0, 100.0);
     final value = (_currentProgress / total).clamp(0.0, 1.0);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -286,7 +323,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
           border: Border.all(color: AppColors.primaryLight, width: 2),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -301,19 +338,24 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                 Expanded(
                   child: Row(
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _etiquetaProgreso.isNotEmpty ? _etiquetaProgreso : 'Procesando...',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          _etiquetaProgreso.isNotEmpty
+                              ? _etiquetaProgreso
+                              : 'Procesando...',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -323,7 +365,10 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(20),
@@ -331,9 +376,9 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                   child: Text(
                     '${pct.toStringAsFixed(1)}%',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -345,7 +390,9 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                 value: value,
                 minHeight: 14,
                 backgroundColor: AppColors.primaryUltraLight,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.primary,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -359,16 +406,21 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                       Text(
                         'Progreso: $_currentProgress / $_totalProcessed registros',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      if (_isProcessing && _currentProgress > 0 && _totalProcessed > 0) ...[
+                      if (_isProcessing &&
+                          _currentProgress > 0 &&
+                          _totalProcessed > 0) ...[
                         const SizedBox(height: 4),
                         Text(
                           '${pct.toStringAsFixed(1)}% completado',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary.withOpacity(0.7),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.7,
+                                ),
                                 fontSize: 12,
                               ),
                         ),
@@ -383,15 +435,16 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                       Text(
                         '✓ ${_resultado!.successCount} guardados',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       if (_resultado!.errorCount > 0) ...[
                         const SizedBox(height: 2),
                         Text(
                           '⚠ ${_resultado!.errorCount} errores',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: AppColors.warning,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -406,16 +459,16 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                       Text(
                         'Procesados: $_currentProgress',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         'Restantes: ${_totalProcessed - _currentProgress}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary.withOpacity(0.7),
-                              fontSize: 11,
-                            ),
+                          color: AppColors.textSecondary.withValues(alpha: 0.7),
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -433,16 +486,20 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Puedes minimizar la app. El proceso continuará en segundo plano.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -457,10 +514,10 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
 
   void _mostrarResultados() {
     if (_resultado == null || !mounted) return;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      
+
       final List<Widget> errorWidgets = [];
       if (_resultado!.errors.isNotEmpty) {
         final erroresMostrar = _resultado!.errors.take(10).toList();
@@ -473,7 +530,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
           );
         }
       }
-      
+
       showDialog(
         context: context,
         barrierDismissible: true,
@@ -483,11 +540,16 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
             children: [
               Icon(
                 _resultado!.errorCount == 0 ? Icons.check_circle : Icons.info,
-                color: _resultado!.errorCount == 0 ? AppColors.success : AppColors.warning,
+                color: _resultado!.errorCount == 0
+                    ? AppColors.success
+                    : AppColors.warning,
               ),
               const SizedBox(width: 10),
               const Expanded(
-                child: Text('Proceso Completado', overflow: TextOverflow.ellipsis),
+                child: Text(
+                  'Proceso Completado',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -505,18 +567,27 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                   const SizedBox(height: 8),
                   Text(
                     'Solicitudes guardadas: ${_resultado!.successCount}',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.success),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.success,
+                    ),
                   ),
                   if (_resultado!.errorCount > 0) ...[
                     const SizedBox(height: 8),
                     Text(
                       'Errores: ${_resultado!.errorCount}',
-                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                   if (_resultado!.errors.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    const Text('Errores detallados:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Errores detallados:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     ...errorWidgets,
                     if (_resultado!.errors.length > 10)
@@ -524,7 +595,10 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           '... y ${_resultado!.errors.length - 10} errores más',
-                          style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
                   ],
@@ -556,9 +630,7 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Carga Masiva de Solicitudes'),
-      ),
+      appBar: AppBar(title: const Text('Carga Masiva de Solicitudes')),
       body: Column(
         children: [
           // Información del formato
@@ -568,51 +640,60 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
             decoration: BoxDecoration(
               color: AppColors.primaryUltraLight,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primaryLight.withOpacity(0.3)),
+              border: Border.all(
+                color: AppColors.primaryLight.withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, color: AppColors.primary),
+                    const Icon(Icons.info_outline, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Text(
                       'Formato del Archivo',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '📌 CSV es 10-50x más rápido que Excel para archivos grandes. En Excel: Guardar como → CSV UTF-8.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Columnas obligatorias:\n• Comuna\n• Comunidad\n• Cédula Creador\n\nColumnas opcionales:\n• Consejo Comunal\n• UBCH\n• Tipo Solicitud (Iluminacion, Agua, Electrico, Otros)\n• Descripción\n• Cantidad Lámparas (solo para Iluminacion)\n• Cantidad Bombillos (solo para Iluminacion)',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.5),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(height: 1.5),
                 ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
+                    color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: AppColors.success),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppColors.success,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Puedes minimizar la app durante la carga. El proceso continúa en segundo plano.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: AppColors.success,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -635,11 +716,11 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
               label: const Text('DESCARGAR PLANTILLA EXCEL'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                side: BorderSide(color: AppColors.primary, width: 2),
+                side: const BorderSide(color: AppColors.primary, width: 2),
               ),
             ),
           ),
-          
+
           const SizedBox(height: 12),
 
           // Botón de selección de archivo
@@ -651,10 +732,17 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.upload_file),
-              label: Text(_selectedFile == null ? 'SELECCIONAR ARCHIVO EXCEL/CSV' : 'CAMBIAR ARCHIVO'),
+              label: Text(
+                _selectedFile == null
+                    ? 'SELECCIONAR ARCHIVO EXCEL/CSV'
+                    : 'CAMBIAR ARCHIVO',
+              ),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
               ),
@@ -673,7 +761,10 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.insert_drive_file, color: AppColors.primary),
+                    const Icon(
+                      Icons.insert_drive_file,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -701,12 +792,12 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _resultado!.errorCount == 0 
-                      ? AppColors.success.withOpacity(0.1)
-                      : AppColors.warning.withOpacity(0.1),
+                  color: _resultado!.errorCount == 0
+                      ? AppColors.success.withValues(alpha: 0.1)
+                      : AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _resultado!.errorCount == 0 
+                    color: _resultado!.errorCount == 0
                         ? AppColors.success
                         : AppColors.warning,
                   ),
@@ -717,15 +808,22 @@ class _BulkUploadSolicitudesPageState extends State<BulkUploadSolicitudesPage> {
                     Row(
                       children: [
                         Icon(
-                          _resultado!.errorCount == 0 ? Icons.check_circle : Icons.warning,
-                          color: _resultado!.errorCount == 0 ? AppColors.success : AppColors.warning,
+                          _resultado!.errorCount == 0
+                              ? Icons.check_circle
+                              : Icons.warning,
+                          color: _resultado!.errorCount == 0
+                              ? AppColors.success
+                              : AppColors.warning,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Proceso Finalizado',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: _resultado!.errorCount == 0 ? AppColors.success : AppColors.warning,
+                                color: _resultado!.errorCount == 0
+                                    ? AppColors.success
+                                    : AppColors.warning,
                               ),
                         ),
                       ],

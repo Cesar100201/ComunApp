@@ -70,8 +70,8 @@ class _EditOrganizacionInfoGeneralPageState extends State<EditOrganizacionInfoGe
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("✅ Información actualizada"),
+          const SnackBar(
+            content: Text("✅ Información actualizada"),
             backgroundColor: AppColors.success,
           ),
         );
@@ -115,7 +115,7 @@ class _EditOrganizacionInfoGeneralPageState extends State<EditOrganizacionInfoGe
               const SizedBox(height: 16),
 
               DropdownButtonFormField<TipoOrganizacion>(
-                value: _selectedTipo,
+                initialValue: _selectedTipo,
                 decoration: const InputDecoration(
                   labelText: "Tipo de Organización *",
                   prefixIcon: Icon(Icons.category),

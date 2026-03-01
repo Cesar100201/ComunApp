@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
+import '../../../../core/utils/constants.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/habitante_repository.dart';
 
@@ -19,12 +21,14 @@ class EditHabitanteCaracterizacionPage extends StatefulWidget {
 class _EditHabitanteCaracterizacionPageState extends State<EditHabitanteCaracterizacionPage> {
   final _formKey = GlobalKey<FormState>();
   late final HabitanteRepository _repo;
+  final UserRoleService _roleService = UserRoleService();
 
   late EstatusPolitico _selectedEstatusPolitico;
   late NivelVoto _selectedNivelVoto;
   late int _selectedNivelUsuario;
 
   bool _isSaving = false;
+  bool _canEditNivelUsuario = false;
 
   @override
   void initState() {
@@ -33,6 +37,9 @@ class _EditHabitanteCaracterizacionPageState extends State<EditHabitanteCaracter
     _selectedEstatusPolitico = widget.habitante.estatusPolitico;
     _selectedNivelVoto = widget.habitante.nivelVoto;
     _selectedNivelUsuario = widget.habitante.nivelUsuario;
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canEditNivelUsuario = n == AppConstants.nivelAdministrador);
+    });
   }
 
   Future<void> _initializeRepository() async {
@@ -52,14 +59,14 @@ class _EditHabitanteCaracterizacionPageState extends State<EditHabitanteCaracter
       if (habitante != null) {
         habitante.estatusPolitico = _selectedEstatusPolitico;
         habitante.nivelVoto = _selectedNivelVoto;
-        habitante.nivelUsuario = _selectedNivelUsuario;
+        if (_canEditNivelUsuario) habitante.nivelUsuario = _selectedNivelUsuario;
 
         await _repo.actualizarHabitante(habitante);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Caracterización política actualizada"),
+            const SnackBar(
+              content: Text("✅ Caracterización política actualizada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -95,7 +102,7 @@ class _EditHabitanteCaracterizacionPageState extends State<EditHabitanteCaracter
             children: [
               // Estatus político
               DropdownButtonFormField<EstatusPolitico>(
-                value: _selectedEstatusPolitico,
+                initialValue: _selectedEstatusPolitico,
                 decoration: const InputDecoration(
                   labelText: "Estatus Político *",
                   prefixIcon: Icon(Icons.how_to_vote),
@@ -116,7 +123,7 @@ class _EditHabitanteCaracterizacionPageState extends State<EditHabitanteCaracter
 
               // Nivel de voto
               DropdownButtonFormField<NivelVoto>(
-                value: _selectedNivelVoto,
+                initialValue: _selectedNivelVoto,
                 decoration: const InputDecoration(
                   labelText: "Nivel de Voto *",
                   prefixIcon: Icon(Icons.poll),
@@ -135,25 +142,28 @@ class _EditHabitanteCaracterizacionPageState extends State<EditHabitanteCaracter
               ),
               const SizedBox(height: 16),
 
-              // Nivel de usuario
-              DropdownButtonFormField<int>(
-                value: _selectedNivelUsuario,
-                decoration: const InputDecoration(
-                  labelText: "Nivel de Usuario *",
-                  prefixIcon: Icon(Icons.shield),
+              // Nivel de usuario: solo visible y editable para administrador
+              if (_canEditNivelUsuario) ...[
+                DropdownButtonFormField<int>(
+                  initialValue: _selectedNivelUsuario >= 1 && _selectedNivelUsuario <= 3 ? _selectedNivelUsuario : AppConstants.nivelInvitado,
+                  decoration: const InputDecoration(
+                    labelText: "Nivel de Usuario *",
+                    prefixIcon: Icon(Icons.shield),
+                  ),
+                  items: [1, 2, 3].map((nivel) {
+                    return DropdownMenuItem(
+                      value: nivel,
+                      child: Text(AppConstants.nivelUsuarioLabel(nivel)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedNivelUsuario = value);
+                    }
+                  },
                 ),
-                items: [1, 2, 3, 4, 5].map((nivel) {
-                  return DropdownMenuItem(
-                    value: nivel,
-                    child: Text("Nivel $nivel"),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedNivelUsuario = value);
-                  }
-                },
-              ),
+                const SizedBox(height: 16),
+              ],
               const SizedBox(height: 32),
 
               // Botón guardar

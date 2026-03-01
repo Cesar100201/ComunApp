@@ -13,11 +13,14 @@ class OrganizacionMiembrosPage extends StatefulWidget {
     super.key,
     this.organizacion,
     this.consejoComunal,
-  }) : assert(organizacion != null || consejoComunal != null,
-          'Debe proporcionar una organización o un consejo comunal');
+  }) : assert(
+         organizacion != null || consejoComunal != null,
+         'Debe proporcionar una organización o un consejo comunal',
+       );
 
   @override
-  State<OrganizacionMiembrosPage> createState() => _OrganizacionMiembrosPageState();
+  State<OrganizacionMiembrosPage> createState() =>
+      _OrganizacionMiembrosPageState();
 }
 
 class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
@@ -39,19 +42,23 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
 
   Future<void> _cargarMiembros() async {
     setState(() => _isLoading = true);
-    
+
     List<Vinculacion> vinculaciones;
     if (widget.organizacion != null) {
-      vinculaciones = await _vinculacionRepo.getVinculacionesPorOrganizacion(widget.organizacion!.id);
+      vinculaciones = await _vinculacionRepo.getVinculacionesPorOrganizacion(
+        widget.organizacion!.id,
+      );
     } else {
-      vinculaciones = await _vinculacionRepo.getVinculacionesPorConsejoComunal(widget.consejoComunal!.id);
+      vinculaciones = await _vinculacionRepo.getVinculacionesPorConsejoComunal(
+        widget.consejoComunal!.id,
+      );
     }
-    
+
     // Cargar relaciones de persona
     for (var v in vinculaciones) {
       await v.persona.load();
     }
-    
+
     if (mounted) {
       setState(() {
         _vinculaciones = vinculaciones;
@@ -71,70 +78,70 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Miembros"),
-      ),
+      appBar: AppBar(title: const Text("Miembros")),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _vinculaciones.isEmpty
-              ? _buildEmptyState()
-              : Column(
-                  children: [
-                    // Header con información de la organización
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        boxShadow: AppColors.shadowMedium,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          ? _buildEmptyState()
+          : Column(
+              children: [
+                // Header con información de la organización
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    boxShadow: AppColors.shadowMedium,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                widget.organizacion != null ? Icons.business : Icons.groups,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _getNombreEntidad(),
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          Icon(
+                            widget.organizacion != null
+                                ? Icons.business
+                                : Icons.groups,
+                            color: Colors.white,
+                            size: 28,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "${_vinculaciones.length} miembro${_vinculaciones.length != 1 ? 's' : ''}",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.9),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _getNombreEntidad(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    // Lista de miembros
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _vinculaciones.length,
-                        itemBuilder: (context, index) {
-                          final v = _vinculaciones[index];
-                          return _buildMiembroCard(v);
-                        },
+                      const SizedBox(height: 8),
+                      Text(
+                        "${_vinculaciones.length} miembro${_vinculaciones.length != 1 ? 's' : ''}",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                // Lista de miembros
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _vinculaciones.length,
+                    itemBuilder: (context, index) {
+                      final v = _vinculaciones[index];
+                      return _buildMiembroCard(v);
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -143,7 +150,7 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.people_outline,
             size: 80,
             color: AppColors.textTertiary,
@@ -151,16 +158,16 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
           const SizedBox(height: 16),
           Text(
             "Sin miembros",
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             "Esta ${widget.organizacion != null ? 'organización' : 'consejo comunal'} no tiene miembros registrados",
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -195,7 +202,7 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
                 backgroundColor: AppColors.primaryUltraLight,
                 child: Text(
                   habitante.nombreCompleto.substring(0, 1).toUpperCase(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
@@ -210,32 +217,38 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
                     Text(
                       habitante.nombreCompleto,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       "Cargo: ${v.cargo}",
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: v.activo 
-                                ? AppColors.success.withOpacity(0.1)
-                                : AppColors.textTertiary.withOpacity(0.1),
+                            color: v.activo
+                                ? AppColors.success.withValues(alpha: 0.1)
+                                : AppColors.textTertiary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             v.activo ? "Activo" : "Inactivo",
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: v.activo ? AppColors.success : AppColors.textTertiary,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: v.activo
+                                      ? AppColors.success
+                                      : AppColors.textTertiary,
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
@@ -243,19 +256,15 @@ class _OrganizacionMiembrosPageState extends State<OrganizacionMiembrosPage> {
                         const SizedBox(width: 8),
                         Text(
                           "C.I: ${habitante.nacionalidad.toString().split('.').last}-${habitante.cedula}",
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textTertiary),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: AppColors.textTertiary,
-              ),
+              const Icon(Icons.chevron_right, color: AppColors.textTertiary),
             ],
           ),
         ),

@@ -84,13 +84,13 @@ class _OrganizacionesListPageState extends State<OrganizacionesListPage> {
           Icon(
             Icons.business_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay organizaciones registradas",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -115,7 +115,7 @@ class _OrganizacionesListPageState extends State<OrganizacionesListPage> {
         },
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          leading: CircleAvatar(
+          leading: const CircleAvatar(
             backgroundColor: AppColors.primaryUltraLight,
             child: Icon(
               Icons.business,
@@ -125,7 +125,7 @@ class _OrganizacionesListPageState extends State<OrganizacionesListPage> {
           title: Text(
             o.nombreLargo,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
           ),
           subtitle: Padding(
@@ -137,13 +137,13 @@ class _OrganizacionesListPageState extends State<OrganizacionesListPage> {
                   Text(
                     "Abrev: ${o.abreviacion}",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 Text(
                   "Tipo: ${o.tipo.toString().split('.').last}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ],

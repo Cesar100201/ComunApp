@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/constants.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/habitante_repository.dart';
 import '../data/repositories/vinculacion_repository.dart';
@@ -13,10 +15,7 @@ import 'habitante_vinculaciones_page.dart';
 class HabitanteProfilePage extends StatefulWidget {
   final Habitante habitante;
 
-  const HabitanteProfilePage({
-    super.key,
-    required this.habitante,
-  });
+  const HabitanteProfilePage({super.key, required this.habitante});
 
   @override
   State<HabitanteProfilePage> createState() => _HabitanteProfilePageState();
@@ -29,11 +28,16 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
   VinculacionRepository? _vinculacionRepo;
   bool _repoInicializado = false;
   List<Vinculacion> _vinculaciones = [];
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorio();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _inicializarRepositorio() async {
@@ -52,16 +56,17 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
     }
     final isar = await DbHelper().db;
     final habitante = await isar.habitantes.get(widget.habitante.id);
-    
+
     if (habitante != null) {
       // Cargar relaciones
       await habitante.consejoComunal.load();
       await habitante.clap.load();
       await habitante.jefeDeFamilia.load();
-      
+
       // Cargar vinculaciones
-      final vinculaciones = await _vinculacionRepo!.getVinculacionesPorHabitante(habitante.id);
-      
+      final vinculaciones = await _vinculacionRepo!
+          .getVinculacionesPorHabitante(habitante.id);
+
       setState(() {
         _habitanteCompleto = habitante;
         _vinculaciones = vinculaciones;
@@ -80,7 +85,9 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirmar Eliminación"),
-        content: const Text("¿Está seguro de que desea eliminar este habitante?"),
+        content: const Text(
+          "¿Está seguro de que desea eliminar este habitante?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -101,11 +108,11 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
           await _inicializarRepositorio();
         }
         await _repo!.eliminarHabitante(widget.habitante.id);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Habitante eliminado"),
+            const SnackBar(
+              content: Text("✅ Habitante eliminado"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -130,7 +137,7 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
     int edad = ahora.year - _habitanteCompleto!.fechaNacimiento.year;
     if (ahora.month < _habitanteCompleto!.fechaNacimiento.month ||
         (ahora.month == _habitanteCompleto!.fechaNacimiento.month &&
-         ahora.day < _habitanteCompleto!.fechaNacimiento.day)) {
+            ahora.day < _habitanteCompleto!.fechaNacimiento.day)) {
       edad--;
     }
     return edad;
@@ -151,11 +158,12 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
       appBar: AppBar(
         title: const Text("Perfil del Habitante"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _eliminarHabitante,
-            tooltip: "Eliminar",
-          ),
+          if (_canDelete)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _eliminarHabitante,
+              tooltip: "Eliminar",
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -176,7 +184,8 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditHabitanteInfoPersonalPage(habitante: h),
+                    builder: (context) =>
+                        EditHabitanteInfoPersonalPage(habitante: h),
                   ),
                 );
                 if (result == true) {
@@ -190,10 +199,7 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                   "${h.nacionalidad.toString().split('.').last}-${h.cedula}",
                 ),
                 _buildInfoRow("Teléfono", h.telefono),
-                _buildInfoRow(
-                  "Género",
-                  h.genero.toString().split('.').last,
-                ),
+                _buildInfoRow("Género", h.genero.toString().split('.').last),
                 _buildInfoRow(
                   "Fecha de Nacimiento",
                   "${h.fechaNacimiento.day.toString().padLeft(2, '0')}/${h.fechaNacimiento.month.toString().padLeft(2, '0')}/${h.fechaNacimiento.year}",
@@ -212,7 +218,8 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditHabitanteDireccionPage(habitante: h),
+                    builder: (context) =>
+                        EditHabitanteDireccionPage(habitante: h),
                   ),
                 );
                 if (result == true) {
@@ -241,7 +248,8 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditHabitanteCaracterizacionPage(habitante: h),
+                    builder: (context) =>
+                        EditHabitanteCaracterizacionPage(habitante: h),
                   ),
                 );
                 if (result == true) {
@@ -257,7 +265,10 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                   "Nivel de Voto",
                   h.nivelVoto.toString().split('.').last,
                 ),
-                _buildInfoRow("Nivel de Usuario", "${h.nivelUsuario}"),
+                _buildInfoRow(
+                  "Nivel de Usuario",
+                  AppConstants.nivelUsuarioLabel(h.nivelUsuario),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -271,7 +282,8 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditHabitanteNucleoFamiliarPage(habitante: h),
+                    builder: (context) =>
+                        EditHabitanteNucleoFamiliarPage(habitante: h),
                   ),
                 );
                 if (result == true) {
@@ -299,7 +311,8 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HabitanteVinculacionesPage(habitante: h),
+                    builder: (context) =>
+                        HabitanteVinculacionesPage(habitante: h),
                   ),
                 );
                 if (result == true) {
@@ -311,34 +324,48 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                       _buildInfoRow(
                         "Organizaciones vinculadas",
                         "Sin vinculaciones",
-                        valueColor: AppColors.textSecondary,
+                        valueColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
                       ),
                     ]
                   : _vinculaciones.map((vinculacion) {
                       final organizacion = vinculacion.organizacion.value;
-                      final nombreOrganizacion = organizacion?.nombreLargo ?? 
-                          organizacion?.abreviacion ?? 
+                      final nombreOrganizacion =
+                          organizacion?.nombreLargo ??
+                          organizacion?.abreviacion ??
                           "Organización desconocida";
                       final cargo = vinculacion.cargo;
                       final activo = vinculacion.activo;
-                      
+
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: activo 
-                                    ? AppColors.success.withOpacity(0.1)
-                                    : AppColors.textTertiary.withOpacity(0.1),
+                                color: activo
+                                    ? AppColors.success.withValues(alpha: 0.1)
+                                    : Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                          .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 activo ? "Activo" : "Inactivo",
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: activo ? AppColors.success : AppColors.textTertiary,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: activo
+                                          ? AppColors.success
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.w600,
                                     ),
                               ),
@@ -350,16 +377,24 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                                 children: [
                                   Text(
                                     nombreOrganizacion,
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                          color: AppColors.textPrimary,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                           fontWeight: FontWeight.w600,
                                         ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     "Cargo: $cargo",
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppColors.textSecondary,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                         ),
                                   ),
                                 ],
@@ -381,7 +416,9 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 _buildInfoRow(
                   "Sincronización",
                   h.isSynced ? "Sincronizado" : "Pendiente",
-                  valueColor: h.isSynced ? AppColors.success : AppColors.warning,
+                  valueColor: h.isSynced
+                      ? AppColors.success
+                      : AppColors.warning,
                 ),
               ],
             ),
@@ -469,17 +506,13 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               if (onEdit != null)
-                Icon(
-                  Icons.edit,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
+                const Icon(Icons.edit, color: AppColors.primary, size: 20),
             ],
           ),
           const SizedBox(height: 16),
@@ -498,9 +531,7 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
         ),
       );
     } else {
-      return Card(
-        child: cardContent,
-      );
+      return Card(child: cardContent);
     }
   }
 
@@ -515,18 +546,18 @@ class _HabitanteProfilePageState extends State<HabitanteProfilePage> {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: valueColor ?? AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: valueColor ?? Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

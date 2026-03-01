@@ -115,7 +115,7 @@ class _ConsejosListPageState extends State<ConsejosListPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.groups_outlined,
             size: 80,
             color: AppColors.textTertiary,
@@ -149,7 +149,7 @@ class _ConsejosListPageState extends State<ConsejosListPage> {
         },
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          leading: CircleAvatar(
+          leading: const CircleAvatar(
             backgroundColor: AppColors.primaryUltraLight,
             child: Icon(
               Icons.groups,

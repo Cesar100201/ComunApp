@@ -186,8 +186,8 @@ class _EditHabitanteDireccionPageState extends State<EditHabitanteDireccionPage>
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Dirección actualizada"),
+            const SnackBar(
+              content: Text("✅ Dirección actualizada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -240,7 +240,7 @@ class _EditHabitanteDireccionPageState extends State<EditHabitanteDireccionPage>
               const SizedBox(height: 16),
 
               DropdownButtonFormField<Parroquia>(
-                value: _selectedParroquia,
+                initialValue: _selectedParroquia,
                 decoration: const InputDecoration(
                   labelText: "Parroquia *",
                   prefixIcon: Icon(Icons.place),
@@ -264,7 +264,7 @@ class _EditHabitanteDireccionPageState extends State<EditHabitanteDireccionPage>
 
               if (_comunasFiltradas.isNotEmpty)
                 DropdownButtonFormField<Comuna>(
-                  value: _selectedComuna,
+                  initialValue: _selectedComuna,
                   decoration: const InputDecoration(
                     labelText: "Comuna",
                     prefixIcon: Icon(Icons.account_balance),
@@ -292,7 +292,7 @@ class _EditHabitanteDireccionPageState extends State<EditHabitanteDireccionPage>
 
               if (_consejosComunalesFiltrados.isNotEmpty)
                 DropdownButtonFormField<ConsejoComunal>(
-                  value: _selectedConsejoComunal,
+                  initialValue: _selectedConsejoComunal,
                   decoration: const InputDecoration(
                     labelText: "Consejo Comunal",
                     prefixIcon: Icon(Icons.groups),
@@ -317,7 +317,7 @@ class _EditHabitanteDireccionPageState extends State<EditHabitanteDireccionPage>
 
               if (_claps.isNotEmpty)
                 DropdownButtonFormField<Clap>(
-                  value: _selectedClap,
+                  initialValue: _selectedClap,
                   decoration: const InputDecoration(
                     labelText: "CLAP",
                     prefixIcon: Icon(Icons.food_bank),

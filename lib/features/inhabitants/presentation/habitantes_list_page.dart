@@ -188,7 +188,7 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
         decoration: BoxDecoration(
           border: Border.all(color: color, width: 2),
           borderRadius: BorderRadius.circular(10),
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,9 +219,9 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
             child: Text(
               "Total de Habitantes: $_totalHabitantes",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -259,35 +259,39 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _habitantes.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _habitantes.length + ((_hasMore && _isLoadingMore) ? 1 : 0) + 1,
-                  itemBuilder: (context, index) {
-                    // Mostrar tarjeta de total al inicio
-                    if (index == 0) {
-                      return _buildTotalCard();
-                    }
-                    // Ajustar índice para los habitantes
-                    final habitanteIndex = index - 1;
-                    if (habitanteIndex >= _habitantes.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final p = _habitantes[habitanteIndex];
-                    return _buildHabitanteCard(p);
-                  },
-                ),
+          ? _buildEmptyState()
+          : ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount:
+                  _habitantes.length +
+                  ((_hasMore && _isLoadingMore) ? 1 : 0) +
+                  1,
+              itemBuilder: (context, index) {
+                // Mostrar tarjeta de total al inicio
+                if (index == 0) {
+                  return _buildTotalCard();
+                }
+                // Ajustar índice para los habitantes
+                final habitanteIndex = index - 1;
+                if (habitanteIndex >= _habitantes.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final p = _habitantes[habitanteIndex];
+                return _buildHabitanteCard(p);
+              },
+            ),
     );
   }
 
   Widget _buildTotalCard() {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      color: AppColors.primary.withOpacity(0.1),
+      color: cs.primaryContainer.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -298,11 +302,7 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.people,
-                color: Colors.white,
-                size: 28,
-              ),
+              child: const Icon(Icons.people, color: Colors.white, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -312,16 +312,16 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
                   Text(
                     "Total de Habitantes Registrados",
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _totalHabitantes.toString(),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -340,14 +340,14 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
           Icon(
             Icons.folder_off_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay registros locales",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -374,14 +374,17 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
         //     Navigator.push(...);
         //   }
         // },
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         leading: CircleAvatar(
           backgroundColor: AppColors.primaryUltraLight,
           // TODO: Cuando se implemente el campo 'isConflict', actualizar:
-          // backgroundColor: p.isConflict ? AppColors.error.withOpacity(0.1) : AppColors.primaryUltraLight,
+          // backgroundColor: p.isConflict ? AppColors.error.withValues(alpha: 0.1) : AppColors.primaryUltraLight,
           child: Text(
             p.nombreCompleto.substring(0, 1),
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.primary,
               // TODO: Cuando se implemente el campo 'isConflict', actualizar:
               // color: p.isConflict ? AppColors.error : AppColors.primary,
@@ -392,16 +395,16 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
         title: Text(
           p.nombreCompleto,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
-              ),
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
             "C.I: ${p.cedula}${p.direccion.isNotEmpty ? '\n${p.direccion}' : ''}",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         // TODO: Cuando se implemente el campo 'sector', actualizar:
@@ -430,13 +433,13 @@ class _HabitantesListPageState extends State<HabitantesListPage> {
               //     ? "CONFLICTO"
               //     : p.isSynced ? "En Línea" : "Pendiente",
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: p.isSynced ? AppColors.success : AppColors.warning,
-                    // TODO: Cuando se implemente el campo 'isConflict', actualizar:
-                    // color: p.isConflict ? AppColors.error : (p.isSynced ? AppColors.success : AppColors.warning),
-                    fontWeight: FontWeight.w500,
-                    // TODO: Cuando se implemente el campo 'isConflict', actualizar:
-                    // fontWeight: p.isConflict ? FontWeight.w700 : FontWeight.w500,
-                  ),
+                color: p.isSynced ? AppColors.success : AppColors.warning,
+                // TODO: Cuando se implemente el campo 'isConflict', actualizar:
+                // color: p.isConflict ? AppColors.error : (p.isSynced ? AppColors.success : AppColors.warning),
+                fontWeight: FontWeight.w500,
+                // TODO: Cuando se implemente el campo 'isConflict', actualizar:
+                // fontWeight: p.isConflict ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ],
         ),

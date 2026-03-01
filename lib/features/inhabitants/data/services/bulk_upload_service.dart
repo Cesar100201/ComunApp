@@ -584,7 +584,7 @@ class BulkUploadService {
     }
     
     if (habitantesActualizar.isNotEmpty) {
-      final batchRel = AppConstants.batchSizeRelations;
+      const batchRel = AppConstants.batchSizeRelations;
       final totalRelaciones = habitantesActualizar.length;
       for (var i = 0; i < habitantesActualizar.length; i += batchRel) {
         final batch = habitantesActualizar.skip(i).take(batchRel).toList();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/consejo_repository.dart';
 import '../../comunas/data/repositories/comuna_repository.dart';
@@ -39,11 +40,16 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
   TipoZona _selectedTipoZona = TipoZona.Urbano;
   double? _latitud;
   double? _longitud;
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorios();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _inicializarRepositorios() async {
@@ -127,8 +133,8 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedComuna == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor seleccione una Comuna"),
+        const SnackBar(
+          content: Text("Por favor seleccione una Comuna"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -154,8 +160,8 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Consejo Comunal actualizado con éxito"),
+            const SnackBar(
+              content: Text("✅ Consejo Comunal actualizado con éxito"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -209,8 +215,8 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text("✅ Consejo Comunal eliminado"),
+              const SnackBar(
+                content: Text("✅ Consejo Comunal eliminado"),
                 backgroundColor: AppColors.success,
               ),
             );
@@ -260,7 +266,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
               },
               tooltip: "Cancelar",
             ),
-          if (!_isEditing)
+          if (!_isEditing && _canDelete)
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _eliminarConsejo,
@@ -316,7 +322,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        Icon(Icons.circle, size: 8, color: AppColors.primary),
+                        const Icon(Icons.circle, size: 8, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -383,7 +389,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<Comuna>(
-              value: _selectedComuna,
+              initialValue: _selectedComuna,
               decoration: const InputDecoration(
                 labelText: "Comuna *",
                 border: OutlineInputBorder(),
@@ -401,7 +407,7 @@ class _ConsejoProfilePageState extends State<ConsejoProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<TipoZona>(
-              value: _selectedTipoZona,
+              initialValue: _selectedTipoZona,
               decoration: const InputDecoration(
                 labelText: "Tipo de Zona *",
                 border: OutlineInputBorder(),

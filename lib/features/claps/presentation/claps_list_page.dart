@@ -88,13 +88,13 @@ class _ClapsListPageState extends State<ClapsListPage> {
           Icon(
             Icons.store_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay CLAPs registrados",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -119,7 +119,7 @@ class _ClapsListPageState extends State<ClapsListPage> {
         },
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          leading: CircleAvatar(
+          leading: const CircleAvatar(
             backgroundColor: AppColors.primaryUltraLight,
             child: Icon(
               Icons.store,
@@ -129,7 +129,7 @@ class _ClapsListPageState extends State<ClapsListPage> {
           title: Text(
             c.nombreClap,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
           ),
           subtitle: Padding(
@@ -138,13 +138,13 @@ class _ClapsListPageState extends State<ClapsListPage> {
                 ? Text(
                     "Jefe: ${c.jefeComunidad.value!.nombreCompleto}",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   )
                 : Text(
                     "Sin jefe asignado",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
           ),

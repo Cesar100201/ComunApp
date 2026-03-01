@@ -80,8 +80,8 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedComuna == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor seleccione una Comuna"),
+        const SnackBar(
+          content: Text("Por favor seleccione una Comuna"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -106,8 +106,8 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("✅ Consejo Comunal registrado con éxito"),
+        const SnackBar(
+          content: Text("✅ Consejo Comunal registrado con éxito"),
           backgroundColor: AppColors.success,
         ),
       );
@@ -140,7 +140,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
               Text(
                 "Datos del Consejo Comunal",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 24),
@@ -181,7 +181,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
               Text(
                 "Ubicación",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 12),
@@ -215,7 +215,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
                             color: AppColors.primaryUltraLight,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.map,
                             color: AppColors.primary,
                           ),
@@ -228,7 +228,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
                               Text(
                                 "Seleccionar ubicación en el mapa",
                                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: AppColors.textPrimary,
+                                      color: Theme.of(context).colorScheme.onSurface,
                                       fontWeight: FontWeight.w600,
                                     ),
                               ),
@@ -237,14 +237,14 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
                                 Text(
                                   "Lat: ${_latitud!.toStringAsFixed(6)}, Lng: ${_longitud!.toStringAsFixed(6)}",
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSecondary,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                               ] else
                                 Text(
                                   "Toca para seleccionar",
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textTertiary,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                             ],
@@ -253,7 +253,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
                         Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 16,
-                          color: AppColors.textTertiary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ],
                     ),
@@ -264,7 +264,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
               Text(
                 "Comunidades",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
               ),
               const SizedBox(height: 12),
@@ -288,7 +288,16 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
                   runSpacing: 8,
                   children: _comunidades.asMap().entries.map((entry) {
                     return Chip(
-                      label: Text(entry.value),
+                      label: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width - 80,
+                        ),
+                        child: Text(
+                          entry.value,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
                       onDeleted: () => _eliminarComunidad(entry.key),
                       deleteIcon: const Icon(Icons.close, size: 18),
                     );
@@ -354,7 +363,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
               TextSpan(
                 text: ' (opcional)',
                 style: Theme.of(context).inputDecorationTheme.labelStyle?.copyWith(
-                      color: AppColors.textTertiary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.normal,
                     ),
               ),
@@ -376,6 +385,7 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
   }) {
     return DropdownButtonFormField<T>(
       initialValue: selectedValue,
+      isExpanded: true,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
@@ -383,7 +393,10 @@ class _AddConsejoPageState extends State<AddConsejoPage> {
       items: items.map((T value) {
         return DropdownMenuItem<T>(
           value: value,
-          child: Text(itemToString != null ? itemToString(value) : value.toString().split('.').last),
+          child: Text(
+            itemToString != null ? itemToString(value) : value.toString().split('.').last,
+            overflow: TextOverflow.ellipsis,
+          ),
         );
       }).toList(),
       onChanged: onChanged,

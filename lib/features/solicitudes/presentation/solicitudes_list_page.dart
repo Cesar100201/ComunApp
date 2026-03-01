@@ -80,13 +80,13 @@ class _SolicitudesListPageState extends State<SolicitudesListPage> {
           Icon(
             Icons.assignment_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay solicitudes registradas",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
         ],
@@ -127,7 +127,7 @@ class _SolicitudesListPageState extends State<SolicitudesListPage> {
         title: Text(
           s.descripcion,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
         ),
         subtitle: Padding(
@@ -138,49 +138,49 @@ class _SolicitudesListPageState extends State<SolicitudesListPage> {
               Text(
                 "Tipo: ${_getTipoSolicitudText(s.tipoSolicitud)}",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
               if (s.comunidad.isNotEmpty)
                 Text(
                   "Comunidad: ${s.comunidad}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               if (s.cantidadLamparas != null || s.cantidadBombillos != null)
                 Text(
                   "Luminarias: ${(s.cantidadLamparas ?? 0) + (s.cantidadBombillos ?? 0)}${s.cantidadLamparas != null && s.cantidadBombillos != null ? ' (${s.cantidadLamparas} lámparas, ${s.cantidadBombillos} bombillos)' : ''}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               if (s.otrosTipoSolicitud != null)
                 Text(
                   "Otros: ${s.otrosTipoSolicitud}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               if (s.consejoComunal.value != null)
                 Text(
                   "Consejo Comunal: ${s.consejoComunal.value!.nombreConsejo}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               if (s.ubch.value != null)
                 Text(
                   "UBCH: ${s.ubch.value!.nombreLargo}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               if (s.creador.value != null)
                 Text(
                   "Creado por: ${s.creador.value!.nombreCompleto}",
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/user_role_service.dart';
 import '../../../../database/db_helper.dart';
 import '../data/repositories/comuna_repository.dart';
 import '../../consejos/presentation/map_location_picker_page.dart';
@@ -35,11 +36,16 @@ class _ComunaProfilePageState extends State<ComunaProfilePage> {
   Parroquia _selectedParroquia = Parroquia.LaFria;
   double? _latitud;
   double? _longitud;
+  bool _canDelete = false;
+  final UserRoleService _roleService = UserRoleService();
 
   @override
   void initState() {
     super.initState();
     _inicializarRepositorio();
+    _roleService.getNivelUsuario().then((n) {
+      if (mounted) setState(() => _canDelete = _roleService.canDelete(n));
+    });
   }
 
   Future<void> _inicializarRepositorio() async {
@@ -87,8 +93,8 @@ class _ComunaProfilePageState extends State<ComunaProfilePage> {
     if (!_formKey.currentState!.validate()) return;
     if (_latitud == null || _longitud == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor seleccione una ubicación en el mapa"),
+        const SnackBar(
+          content: Text("Por favor seleccione una ubicación en el mapa"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -116,8 +122,8 @@ class _ComunaProfilePageState extends State<ComunaProfilePage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Comuna actualizada con éxito"),
+            const SnackBar(
+              content: Text("✅ Comuna actualizada con éxito"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -167,8 +173,8 @@ class _ComunaProfilePageState extends State<ComunaProfilePage> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Comuna eliminada"),
+            const SnackBar(
+              content: Text("✅ Comuna eliminada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -217,7 +223,7 @@ class _ComunaProfilePageState extends State<ComunaProfilePage> {
               },
               tooltip: "Cancelar",
             ),
-          if (!_isEditing)
+          if (!_isEditing && _canDelete)
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _eliminarComuna,
@@ -332,7 +338,7 @@ class _ComunaProfilePageState extends State<ComunaProfilePage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<Parroquia>(
-              value: _selectedParroquia,
+              initialValue: _selectedParroquia,
               decoration: const InputDecoration(
                 labelText: "Parroquia *",
                 border: OutlineInputBorder(),

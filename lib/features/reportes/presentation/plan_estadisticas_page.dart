@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:goblafria/core/theme/app_theme.dart';
 import 'package:goblafria/models/models.dart';
 import 'package:goblafria/database/db_helper.dart';
@@ -28,7 +27,7 @@ class PlanEstadisticasPage extends StatefulWidget {
 class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
   bool _isLoading = true;
   bool _isGeneratingPdf = false;
-  
+
   int _totalSolicitudes = 0;
   int _totalLuminarias = 0;
   int _totalEntregadas = 0;
@@ -43,13 +42,13 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
   List<Solicitud> _solicitudes = [];
   List<Reporte> _reportes = [];
   List<Comuna> _comunas = [];
-  
+
   Comuna? _comunaFiltrada;
 
   late SolicitudRepository _solicitudRepo;
   late ReporteRepository _reporteRepo;
   late ComunaRepository _comunaRepo;
-  
+
   // GlobalKey para capturar el gráfico como imagen
   final GlobalKey _chartKey = GlobalKey();
 
@@ -64,19 +63,19 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     _solicitudRepo = SolicitudRepository(isar);
     _reporteRepo = ReporteRepository(isar);
     _comunaRepo = ComunaRepository(isar);
-    
+
     await _cargarDatos();
   }
 
   Future<void> _cargarDatos({Comuna? comunaFiltro}) async {
     setState(() => _isLoading = true);
-    
+
     // Cargar todas las solicitudes del tipo especificado
     final todasSolicitudes = await _solicitudRepo.getAllSolicitudes();
     _solicitudes = todasSolicitudes
         .where((s) => s.tipoSolicitud == widget.tipoSolicitud)
         .toList();
-    
+
     // Si hay filtro de comuna, aplicarlo
     if (comunaFiltro != null) {
       _solicitudes = _solicitudes.where((s) {
@@ -84,27 +83,27 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
         return false;
       }).toList();
     }
-    
+
     // Cargar reportes
     _reportes = await _reporteRepo.getAllReportes();
-    
+
     // Cargar comunas para el filtro
     _comunas = await _comunaRepo.getAllComunas();
-    
+
     // Cargar relaciones de solicitudes
     for (var s in _solicitudes) {
       await s.comuna.load();
       await s.consejoComunal.load();
     }
-    
+
     // Cargar relaciones de reportes
     for (var r in _reportes) {
       await r.solicitud.load();
     }
-    
+
     // Calcular estadísticas
     _calcularEstadisticas();
-    
+
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -120,63 +119,66 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     _lamparasPendientes = 0;
     _bombillosEntregados = 0;
     _bombillosPendientes = 0;
-    
+
     // Calcular total solicitado
     for (var s in _solicitudes) {
       final lamparas = s.cantidadLamparas ?? 0;
       final bombillos = s.cantidadBombillos ?? 0;
       final totalSolicitud = lamparas + bombillos;
-      
+
       _totalLamparas += lamparas;
       _totalBombillos += bombillos;
       _totalLuminarias += totalSolicitud;
     }
-    
+
     // Calcular total entregado desde los reportes (proporcionalmente)
     for (var r in _reportes) {
       final solicitud = r.solicitud.value;
       if (solicitud != null && _solicitudes.any((s) => s.id == solicitud.id)) {
         final luminariasEntregadas = r.luminariasEntregadas ?? 0;
         _totalEntregadas += luminariasEntregadas;
-        
+
         // Calcular proporción de lámparas y bombillos entregados
         final lamparasSolicitud = solicitud.cantidadLamparas ?? 0;
         final bombillosSolicitud = solicitud.cantidadBombillos ?? 0;
         final totalSolicitud = lamparasSolicitud + bombillosSolicitud;
-        
+
         if (totalSolicitud > 0) {
           // Calcular proporción de lámparas
           final proporcionLamparas = lamparasSolicitud / totalSolicitud;
-          
+
           // Calcular entregas proporcionales (redondeando para lámparas)
-          final lamparasEntregadas = (luminariasEntregadas * proporcionLamparas).round();
-          final bombillosEntregados = luminariasEntregadas - lamparasEntregadas; // El resto son bombillos
-          
+          final lamparasEntregadas = (luminariasEntregadas * proporcionLamparas)
+              .round();
+          final bombillosEntregados =
+              luminariasEntregadas -
+              lamparasEntregadas; // El resto son bombillos
+
           _lamparasEntregadas += lamparasEntregadas;
           _bombillosEntregados += bombillosEntregados;
         }
       }
     }
-    
+
     // Calcular pendientes
     _totalPendientes = _totalLuminarias - _totalEntregadas;
     // Asegurar que los pendientes no sean negativos
     if (_totalPendientes < 0) _totalPendientes = 0;
-    
+
     _lamparasPendientes = _totalLamparas - _lamparasEntregadas;
     if (_lamparasPendientes < 0) _lamparasPendientes = 0;
-    
+
     _bombillosPendientes = _totalBombillos - _bombillosEntregados;
     if (_bombillosPendientes < 0) _bombillosPendientes = 0;
   }
 
   Map<String, Map<String, int>> _calcularEstadisticasPorComuna() {
     final estadisticasPorComuna = <String, Map<String, int>>{};
-    
+
     // Inicializar estadísticas para cada comuna
     for (var solicitud in _solicitudes) {
       final comunaNombre = solicitud.comuna.value?.nombreComuna ?? 'Sin comuna';
-      
+
       if (!estadisticasPorComuna.containsKey(comunaNombre)) {
         estadisticasPorComuna[comunaNombre] = {
           'lamparas': 0,
@@ -186,68 +188,71 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
           'pendientes': 0,
         };
       }
-      
+
       // Sumar lámparas y bombillos por separado
       final lamparas = solicitud.cantidadLamparas ?? 0;
       final bombillos = solicitud.cantidadBombillos ?? 0;
       final totalSolicitud = lamparas + bombillos;
-      
-      estadisticasPorComuna[comunaNombre]!['lamparas'] = 
+
+      estadisticasPorComuna[comunaNombre]!['lamparas'] =
           (estadisticasPorComuna[comunaNombre]!['lamparas'] ?? 0) + lamparas;
-      estadisticasPorComuna[comunaNombre]!['bombillos'] = 
+      estadisticasPorComuna[comunaNombre]!['bombillos'] =
           (estadisticasPorComuna[comunaNombre]!['bombillos'] ?? 0) + bombillos;
       // Total solicitadas (suma de ambos)
-      estadisticasPorComuna[comunaNombre]!['solicitadas'] = 
-          (estadisticasPorComuna[comunaNombre]!['solicitadas'] ?? 0) + totalSolicitud;
+      estadisticasPorComuna[comunaNombre]!['solicitadas'] =
+          (estadisticasPorComuna[comunaNombre]!['solicitadas'] ?? 0) +
+          totalSolicitud;
     }
-    
+
     // Calcular entregadas por cada reporte
     for (var reporte in _reportes) {
       final solicitud = reporte.solicitud.value;
       if (solicitud != null && _solicitudes.any((s) => s.id == solicitud.id)) {
-        final comunaNombre = solicitud.comuna.value?.nombreComuna ?? 'Sin comuna';
-        
+        final comunaNombre =
+            solicitud.comuna.value?.nombreComuna ?? 'Sin comuna';
+
         if (estadisticasPorComuna.containsKey(comunaNombre)) {
-          estadisticasPorComuna[comunaNombre]!['entregadas'] = 
-              (estadisticasPorComuna[comunaNombre]!['entregadas'] ?? 0) + 
+          estadisticasPorComuna[comunaNombre]!['entregadas'] =
+              (estadisticasPorComuna[comunaNombre]!['entregadas'] ?? 0) +
               (reporte.luminariasEntregadas ?? 0);
         }
       }
     }
-    
+
     // Calcular pendientes
     for (var entry in estadisticasPorComuna.entries) {
       final solicitadas = entry.value['solicitadas'] ?? 0;
       final entregadas = entry.value['entregadas'] ?? 0;
-      estadisticasPorComuna[entry.key]!['pendientes'] = solicitadas - entregadas;
+      estadisticasPorComuna[entry.key]!['pendientes'] =
+          solicitadas - entregadas;
     }
-    
+
     return estadisticasPorComuna;
   }
 
-
   Future<void> _generarPDF() async {
     setState(() => _isGeneratingPdf = true);
-    
+
     try {
       final pdf = pw.Document();
-      
+
       // Determinar título según filtro
       final tipoReporte = _comunaFiltrada != null
           ? 'REPORTE POR COMUNA'
           : 'REPORTE MUNICIPAL';
-      
+
       final subtitulo = _comunaFiltrada != null
           ? _comunaFiltrada!.nombreComuna.toUpperCase()
           : 'CONSOLIDADO GENERAL';
-      
-      final porcentajeAvance = _totalLuminarias > 0 
+
+      final porcentajeAvance = _totalLuminarias > 0
           ? ((_totalEntregadas / _totalLuminarias) * 100).toStringAsFixed(1)
           : '0';
-      
+
       final fechaActual = DateTime.now();
-      final fechaFormateada = '${fechaActual.day.toString().padLeft(2, '0')}/${fechaActual.month.toString().padLeft(2, '0')}/${fechaActual.year}';
-      
+      final fechaFormateada =
+          '${fechaActual.day.toString().padLeft(2, '0')}/${fechaActual.month.toString().padLeft(2, '0')}/${fechaActual.year}';
+
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -256,11 +261,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
             return pw.Container(
               width: double.infinity,
               padding: const pw.EdgeInsets.only(bottom: 25),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 border: pw.Border(
                   bottom: pw.BorderSide(color: PdfColors.blue900, width: 4),
                 ),
-                gradient: const pw.LinearGradient(
+                gradient: pw.LinearGradient(
                   colors: [PdfColors.blue50, PdfColors.white],
                   begin: pw.Alignment.topCenter,
                   end: pw.Alignment.bottomCenter,
@@ -275,7 +280,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                     height: 3,
                     decoration: const pw.BoxDecoration(
                       gradient: pw.LinearGradient(
-                        colors: [PdfColors.blue900, PdfColors.blue700, PdfColors.blue900],
+                        colors: [
+                          PdfColors.blue900,
+                          PdfColors.blue700,
+                          PdfColors.blue900,
+                        ],
                         stops: [0.0, 0.5, 1.0],
                       ),
                     ),
@@ -331,7 +340,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   pw.Container(
                     width: double.infinity,
                     padding: const pw.EdgeInsets.symmetric(vertical: 10),
-                    decoration: pw.BoxDecoration(
+                    decoration: const pw.BoxDecoration(
                       color: PdfColors.blue900,
                     ),
                     child: pw.Center(
@@ -354,11 +363,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
             return pw.Container(
               width: double.infinity,
               padding: const pw.EdgeInsets.only(top: 18),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 border: pw.Border(
                   top: pw.BorderSide(color: PdfColors.blue900, width: 2),
                 ),
-                gradient: const pw.LinearGradient(
+                gradient: pw.LinearGradient(
                   colors: [PdfColors.white, PdfColors.grey50],
                   begin: pw.Alignment.topCenter,
                   end: pw.Alignment.bottomCenter,
@@ -390,10 +399,15 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         ],
                       ),
                       pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: pw.BoxDecoration(
+                        padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: const pw.BoxDecoration(
                           color: PdfColors.blue900,
-                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+                          borderRadius: pw.BorderRadius.all(
+                            pw.Radius.circular(3),
+                          ),
                         ),
                         child: pw.Text(
                           'Página ${context.pageNumber} de ${context.pagesCount}',
@@ -452,11 +466,19 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                     ),
                     pw.SizedBox(height: 10),
                     pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                       decoration: pw.BoxDecoration(
                         color: PdfColors.blue100,
-                        border: pw.Border.all(color: PdfColors.blue700, width: 1.5),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                        border: pw.Border.all(
+                          color: PdfColors.blue700,
+                          width: 1.5,
+                        ),
+                        borderRadius: const pw.BorderRadius.all(
+                          pw.Radius.circular(4),
+                        ),
                       ),
                       child: pw.Column(
                         children: [
@@ -493,9 +515,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   ],
                 ),
               ),
-              
+
               pw.SizedBox(height: 25),
-              
+
               // Resumen ejecutivo mejorado
               pw.Container(
                 width: double.infinity,
@@ -507,7 +529,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                     end: pw.Alignment.bottomRight,
                   ),
                   border: pw.Border.all(color: PdfColors.blue900, width: 2.5),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(8),
+                  ),
                 ),
                 child: pw.Column(
                   children: [
@@ -516,7 +540,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                       padding: const pw.EdgeInsets.symmetric(vertical: 10),
                       decoration: const pw.BoxDecoration(
                         color: PdfColors.blue900,
-                        borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+                        borderRadius: pw.BorderRadius.all(
+                          pw.Radius.circular(4),
+                        ),
                       ),
                       child: pw.Center(
                         child: pw.Text(
@@ -542,9 +568,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         pw.Container(
                           width: 2,
                           height: 70,
-                          decoration: pw.BoxDecoration(
+                          decoration: const pw.BoxDecoration(
                             color: PdfColors.blue300,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                            borderRadius: pw.BorderRadius.all(
+                              pw.Radius.circular(1),
+                            ),
                           ),
                         ),
                         _buildIndicadorMejorado(
@@ -555,9 +583,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         pw.Container(
                           width: 2,
                           height: 70,
-                          decoration: pw.BoxDecoration(
+                          decoration: const pw.BoxDecoration(
                             color: PdfColors.blue300,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                            borderRadius: pw.BorderRadius.all(
+                              pw.Radius.circular(1),
+                            ),
                           ),
                         ),
                         _buildIndicadorMejorado(
@@ -568,9 +598,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         pw.Container(
                           width: 2,
                           height: 70,
-                          decoration: pw.BoxDecoration(
+                          decoration: const pw.BoxDecoration(
                             color: PdfColors.blue300,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                            borderRadius: pw.BorderRadius.all(
+                              pw.Radius.circular(1),
+                            ),
                           ),
                         ),
                         _buildIndicadorMejorado(
@@ -581,9 +613,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         pw.Container(
                           width: 2,
                           height: 70,
-                          decoration: pw.BoxDecoration(
+                          decoration: const pw.BoxDecoration(
                             color: PdfColors.blue300,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(1)),
+                            borderRadius: pw.BorderRadius.all(
+                              pw.Radius.circular(1),
+                            ),
                           ),
                         ),
                         _buildIndicadorMejorado(
@@ -592,17 +626,17 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                           double.parse(porcentajeAvance) >= 75
                               ? PdfColors.green700
                               : double.parse(porcentajeAvance) >= 50
-                                  ? PdfColors.orange700
-                                  : PdfColors.red700,
+                              ? PdfColors.orange700
+                              : PdfColors.red700,
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
+
               pw.SizedBox(height: 25),
-              
+
               // Tabla de balance detallado mejorada
               pw.Container(
                 width: double.infinity,
@@ -633,16 +667,24 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.blue900, width: 2),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(4),
+                  ),
                 ),
                 child: pw.Table(
-                  border: pw.TableBorder(
-                    left: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    right: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    top: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    bottom: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    horizontalInside: const pw.BorderSide(color: PdfColors.blue900, width: 1),
-                    verticalInside: const pw.BorderSide(color: PdfColors.blue900, width: 1),
+                  border: const pw.TableBorder(
+                    left: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    right: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    top: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    bottom: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    horizontalInside: pw.BorderSide(
+                      color: PdfColors.blue900,
+                      width: 1,
+                    ),
+                    verticalInside: pw.BorderSide(
+                      color: PdfColors.blue900,
+                      width: 1,
+                    ),
                   ),
                   columnWidths: {
                     0: const pw.FlexColumnWidth(3),
@@ -652,9 +694,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   children: [
                     // Encabezado
                     pw.TableRow(
-                      decoration: pw.BoxDecoration(
+                      decoration: const pw.BoxDecoration(
                         color: PdfColors.blue900,
-                        borderRadius: const pw.BorderRadius.only(
+                        borderRadius: pw.BorderRadius.only(
                           topLeft: pw.Radius.circular(2),
                           topRight: pw.Radius.circular(2),
                         ),
@@ -700,83 +742,83 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         ),
                       ],
                     ),
-                  // Filas de datos
-                  _buildFilaInstitucional(
-                    'Lámparas Solicitadas',
-                    _totalLamparas,
-                    _totalLuminarias > 0 
-                        ? ((_totalLamparas / _totalLuminarias) * 100)
-                        : 0.0,
-                    PdfColors.orange50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Bombillos Solicitados',
-                    _totalBombillos,
-                    _totalLuminarias > 0 
-                        ? ((_totalBombillos / _totalLuminarias) * 100)
-                        : 0.0,
-                    PdfColors.yellow50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Total Luminarias Solicitadas',
-                    _totalLuminarias,
-                    _totalLuminarias > 0 ? 100.0 : 0.0,
-                    PdfColors.white,
-                  ),
-                  _buildFilaInstitucional(
-                    'Lámparas Entregadas',
-                    _lamparasEntregadas,
-                    _totalLamparas > 0 
-                        ? ((_lamparasEntregadas / _totalLamparas) * 100)
-                        : 0.0,
-                    PdfColors.green50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Lámparas Pendientes',
-                    _lamparasPendientes,
-                    _totalLamparas > 0 
-                        ? ((_lamparasPendientes / _totalLamparas) * 100)
-                        : 0.0,
-                    PdfColors.red50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Bombillos Entregados',
-                    _bombillosEntregados,
-                    _totalBombillos > 0 
-                        ? ((_bombillosEntregados / _totalBombillos) * 100)
-                        : 0.0,
-                    PdfColors.green50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Bombillos Pendientes',
-                    _bombillosPendientes,
-                    _totalBombillos > 0 
-                        ? ((_bombillosPendientes / _totalBombillos) * 100)
-                        : 0.0,
-                    PdfColors.red50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Luminarias Entregadas',
-                    _totalEntregadas,
-                    _totalLuminarias > 0 
-                        ? ((_totalEntregadas / _totalLuminarias) * 100)
-                        : 0.0,
-                    PdfColors.green50,
-                  ),
-                  _buildFilaInstitucional(
-                    'Luminarias Pendientes',
-                    _totalPendientes,
-                    _totalLuminarias > 0 
-                        ? ((_totalPendientes / _totalLuminarias) * 100)
-                        : 0.0,
-                    PdfColors.red50,
-                  ),
+                    // Filas de datos
+                    _buildFilaInstitucional(
+                      'Lámparas Solicitadas',
+                      _totalLamparas,
+                      _totalLuminarias > 0
+                          ? ((_totalLamparas / _totalLuminarias) * 100)
+                          : 0.0,
+                      PdfColors.orange50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Bombillos Solicitados',
+                      _totalBombillos,
+                      _totalLuminarias > 0
+                          ? ((_totalBombillos / _totalLuminarias) * 100)
+                          : 0.0,
+                      PdfColors.yellow50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Total Luminarias Solicitadas',
+                      _totalLuminarias,
+                      _totalLuminarias > 0 ? 100.0 : 0.0,
+                      PdfColors.white,
+                    ),
+                    _buildFilaInstitucional(
+                      'Lámparas Entregadas',
+                      _lamparasEntregadas,
+                      _totalLamparas > 0
+                          ? ((_lamparasEntregadas / _totalLamparas) * 100)
+                          : 0.0,
+                      PdfColors.green50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Lámparas Pendientes',
+                      _lamparasPendientes,
+                      _totalLamparas > 0
+                          ? ((_lamparasPendientes / _totalLamparas) * 100)
+                          : 0.0,
+                      PdfColors.red50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Bombillos Entregados',
+                      _bombillosEntregados,
+                      _totalBombillos > 0
+                          ? ((_bombillosEntregados / _totalBombillos) * 100)
+                          : 0.0,
+                      PdfColors.green50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Bombillos Pendientes',
+                      _bombillosPendientes,
+                      _totalBombillos > 0
+                          ? ((_bombillosPendientes / _totalBombillos) * 100)
+                          : 0.0,
+                      PdfColors.red50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Luminarias Entregadas',
+                      _totalEntregadas,
+                      _totalLuminarias > 0
+                          ? ((_totalEntregadas / _totalLuminarias) * 100)
+                          : 0.0,
+                      PdfColors.green50,
+                    ),
+                    _buildFilaInstitucional(
+                      'Luminarias Pendientes',
+                      _totalPendientes,
+                      _totalLuminarias > 0
+                          ? ((_totalPendientes / _totalLuminarias) * 100)
+                          : 0.0,
+                      PdfColors.red50,
+                    ),
                   ],
                 ),
               ),
-              
+
               pw.SizedBox(height: 30),
-              
+
               // Tabla de desglose por tipo de luminaria
               pw.Container(
                 width: double.infinity,
@@ -807,16 +849,24 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               pw.Container(
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.blue900, width: 2),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(4),
+                  ),
                 ),
                 child: pw.Table(
-                  border: pw.TableBorder(
-                    left: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    right: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    top: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    bottom: const pw.BorderSide(color: PdfColors.blue900, width: 1.5),
-                    horizontalInside: const pw.BorderSide(color: PdfColors.blue900, width: 1),
-                    verticalInside: const pw.BorderSide(color: PdfColors.blue900, width: 1),
+                  border: const pw.TableBorder(
+                    left: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    right: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    top: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    bottom: pw.BorderSide(color: PdfColors.blue900, width: 1.5),
+                    horizontalInside: pw.BorderSide(
+                      color: PdfColors.blue900,
+                      width: 1,
+                    ),
+                    verticalInside: pw.BorderSide(
+                      color: PdfColors.blue900,
+                      width: 1,
+                    ),
                   ),
                   columnWidths: {
                     0: const pw.FlexColumnWidth(2.5),
@@ -826,9 +876,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   children: [
                     // Encabezado
                     pw.TableRow(
-                      decoration: pw.BoxDecoration(
+                      decoration: const pw.BoxDecoration(
                         color: PdfColors.blue900,
-                        borderRadius: const pw.BorderRadius.only(
+                        borderRadius: pw.BorderRadius.only(
                           topLeft: pw.Radius.circular(2),
                           topRight: pw.Radius.circular(2),
                         ),
@@ -878,7 +928,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                     _buildFilaInstitucional(
                       'Lámparas Solicitadas',
                       _totalLamparas,
-                      _totalLuminarias > 0 
+                      _totalLuminarias > 0
                           ? ((_totalLamparas / _totalLuminarias) * 100)
                           : 0.0,
                       PdfColors.orange50,
@@ -886,7 +936,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                     _buildFilaInstitucional(
                       'Bombillos Solicitados',
                       _totalBombillos,
-                      _totalLuminarias > 0 
+                      _totalLuminarias > 0
                           ? ((_totalBombillos / _totalLuminarias) * 100)
                           : 0.0,
                       PdfColors.yellow50,
@@ -894,9 +944,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   ],
                 ),
               ),
-              
+
               pw.SizedBox(height: 30),
-              
+
               // Balance por comuna (solo en reporte municipal)
               if (_comunaFiltrada == null) ...[
                 pw.Container(
@@ -928,7 +978,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                 _buildTablaComunasInstitucional(),
                 pw.SizedBox(height: 30),
               ],
-              
+
               // Indicador de progreso mejorado
               pw.Container(
                 width: double.infinity,
@@ -962,7 +1012,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.blue900, width: 2),
                   color: PdfColors.grey50,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -980,14 +1032,19 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                           ),
                         ),
                         pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: pw.BoxDecoration(
                             color: double.parse(porcentajeAvance) >= 75
                                 ? PdfColors.green700
                                 : double.parse(porcentajeAvance) >= 50
-                                    ? PdfColors.orange700
-                                    : PdfColors.red700,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                                ? PdfColors.orange700
+                                : PdfColors.red700,
+                            borderRadius: const pw.BorderRadius.all(
+                              pw.Radius.circular(4),
+                            ),
                           ),
                           child: pw.Text(
                             '$porcentajeAvance%',
@@ -1007,14 +1064,19 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                         final progressWidth = _totalLuminarias > 0
                             ? (maxWidth * (_totalEntregadas / _totalLuminarias))
                             : 0.0;
-                        
+
                         return pw.Container(
                           height: 32,
                           width: maxWidth,
                           decoration: pw.BoxDecoration(
-                            border: pw.Border.all(color: PdfColors.blue900, width: 1.5),
+                            border: pw.Border.all(
+                              color: PdfColors.blue900,
+                              width: 1.5,
+                            ),
                             color: PdfColors.white,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                            borderRadius: const pw.BorderRadius.all(
+                              pw.Radius.circular(4),
+                            ),
                           ),
                           child: pw.Stack(
                             children: [
@@ -1026,14 +1088,16 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                                     color: double.parse(porcentajeAvance) >= 75
                                         ? PdfColors.green700
                                         : double.parse(porcentajeAvance) >= 50
-                                            ? PdfColors.orange700
-                                            : PdfColors.red700,
-                                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                                        ? PdfColors.orange700
+                                        : PdfColors.red700,
+                                    borderRadius: const pw.BorderRadius.all(
+                                      pw.Radius.circular(4),
+                                    ),
                                   ),
                                 ),
                               pw.Center(
                                 child: pw.Text(
-                                  '${_totalEntregadas} de ${_totalLuminarias} luminarias entregadas',
+                                  '$_totalEntregadas de $_totalLuminarias luminarias entregadas',
                                   style: pw.TextStyle(
                                     fontWeight: pw.FontWeight.bold,
                                     fontSize: 10,
@@ -1053,7 +1117,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          'Pendientes: ${_totalPendientes}',
+                          'Pendientes: $_totalPendientes',
                           style: pw.TextStyle(
                             fontSize: 9,
                             color: PdfColors.grey700,
@@ -1073,9 +1137,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   ],
                 ),
               ),
-              
+
               pw.SizedBox(height: 30),
-              
+
               // Nota final mejorada
               pw.Container(
                 width: double.infinity,
@@ -1087,7 +1151,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                     end: pw.Alignment.bottomRight,
                   ),
                   border: pw.Border.all(color: PdfColors.blue400, width: 1.5),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1118,7 +1184,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                       'Este documento ha sido generado automáticamente por el Sistema de Gestión Municipal - Sala Situacional. '
                       'Los datos presentados reflejan el estado actualizado al momento de su emisión y han sido verificados '
                       'según los registros oficiales del municipio.',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 8,
                         color: PdfColors.grey700,
                         height: 1.4,
@@ -1132,16 +1198,16 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
           },
         ),
       );
-      
+
       // Guardar y compartir PDF
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("✅ PDF generado exitosamente"),
+          const SnackBar(
+            content: Text("✅ PDF generado exitosamente"),
             backgroundColor: AppColors.success,
           ),
         );
@@ -1162,7 +1228,11 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     }
   }
 
-  pw.Widget _buildIndicadorMejorado(String etiqueta, String valor, PdfColor color) {
+  pw.Widget _buildIndicadorMejorado(
+    String etiqueta,
+    String valor,
+    PdfColor color,
+  ) {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 15),
       decoration: pw.BoxDecoration(
@@ -1219,7 +1289,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     } else if (concepto.contains('Solicitadas')) {
       textColor = PdfColors.orange800;
     }
-    
+
     return pw.TableRow(
       decoration: pw.BoxDecoration(color: bgColor),
       children: [
@@ -1288,12 +1358,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
   pw.Widget _buildTablaComunasInstitucional() {
     final estadisticasPorComuna = _calcularEstadisticasPorComuna();
     final comunasOrdenadas = estadisticasPorComuna.keys.toList()..sort();
-    
+
     return pw.Table(
-      border: pw.TableBorder.all(
-        color: PdfColors.blue900,
-        width: 1.5,
-      ),
+      border: pw.TableBorder.all(color: PdfColors.blue900, width: 1.5),
       columnWidths: {
         0: const pw.FlexColumnWidth(2),
         1: const pw.FlexColumnWidth(1),
@@ -1391,9 +1458,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
           final index = entry.key;
           final comunaNombre = entry.value;
           final stats = estadisticasPorComuna[comunaNombre]!;
-          
+
           final bgColor = index % 2 == 0 ? PdfColors.grey50 : PdfColors.white;
-          
+
           return pw.TableRow(
             decoration: pw.BoxDecoration(color: bgColor),
             children: [
@@ -1553,7 +1620,6 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     );
   }
 
-
   Future<void> _mostrarDialogoFiltro() async {
     final comunaSeleccionada = await showDialog<Comuna>(
       context: context,
@@ -1581,14 +1647,14 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
         ),
       ),
     );
-    
+
     // Si el diálogo no fue cancelado
     if (!mounted) return;
-    
+
     setState(() {
       _comunaFiltrada = comunaSeleccionada;
     });
-    
+
     await _cargarDatos(comunaFiltro: comunaSeleccionada);
   }
 
@@ -1602,9 +1668,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.tituloPlan),
-      ),
+      appBar: AppBar(title: Text(widget.tituloPlan)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1616,9 +1680,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   ? "Reporte por Comuna: ${_comunaFiltrada!.nombreComuna}"
                   : "Balance Municipal",
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -1651,17 +1715,17 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               AppColors.error,
             ),
             const SizedBox(height: 32),
-            
+
             // Título de sección de desglose
             Text(
               "Desglose por Tipo de Luminaria",
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 16),
-            
+
             // Tarjetas de lámparas
             _buildEstadisticaCard(
               "Lámparas Solicitadas",
@@ -1684,7 +1748,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
               Colors.red,
             ),
             const SizedBox(height: 16),
-            
+
             // Tarjetas de bombillos
             _buildEstadisticaCard(
               "Bombillos Solicitados",
@@ -1712,9 +1776,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
             Text(
               "Gráfico de Distribución",
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 16),
             _buildGraficoColumnas(),
@@ -1732,7 +1796,9 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Icon(Icons.picture_as_pdf),
@@ -1777,7 +1843,7 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icono, color: color, size: 28),
@@ -1790,16 +1856,16 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
                   Text(
                     titulo,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     valor,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -1812,306 +1878,334 @@ class _PlanEstadisticasPageState extends State<PlanEstadisticasPage> {
 
   Widget _buildGraficoColumnas() {
     final maxValue = [
-      _totalLamparas, _lamparasEntregadas, _lamparasPendientes,
-      _totalBombillos, _bombillosEntregados, _bombillosPendientes
+      _totalLamparas,
+      _lamparasEntregadas,
+      _lamparasPendientes,
+      _totalBombillos,
+      _bombillosEntregados,
+      _bombillosPendientes,
     ].reduce((a, b) => a > b ? a : b).toDouble();
-    
+
     return RepaintBoundary(
       key: _chartKey,
       child: Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              AppColors.primaryUltraLight.withOpacity(0.3),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                AppColors.primaryUltraLight.withValues(alpha: 0.3),
+              ],
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.bar_chart,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Comparativa de Lámparas y Bombillos",
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 350,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceEvenly,
+                    maxY: maxValue + (maxValue * 0.15),
+                    minY: 0,
+                    barTouchData: BarTouchData(enabled: false),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 100,
+                          getTitlesWidget: (value, meta) {
+                            String label;
+                            int cantidad;
+                            Color color;
+
+                            switch (value.toInt()) {
+                              case 0:
+                                label = 'Lámparas\nSolicitadas';
+                                cantidad = _totalLamparas;
+                                color = Colors.orange;
+                                break;
+                              case 1:
+                                label = 'Lámparas\nEntregadas';
+                                cantidad = _lamparasEntregadas;
+                                color = Colors.green;
+                                break;
+                              case 2:
+                                label = 'Lámparas\nPendientes';
+                                cantidad = _lamparasPendientes;
+                                color = Colors.red;
+                                break;
+                              case 3:
+                                label = 'Bombillos\nSolicitados';
+                                cantidad = _totalBombillos;
+                                color = Colors.amber;
+                                break;
+                              case 4:
+                                label = 'Bombillos\nEntregados';
+                                cantidad = _bombillosEntregados;
+                                color = Colors.green;
+                                break;
+                              case 5:
+                                label = 'Bombillos\nPendientes';
+                                cantidad = _bombillosPendientes;
+                                color = Colors.red;
+                                break;
+                              default:
+                                return const Text('');
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    cantidad.toString(),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: color,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    label,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 50,
+                          interval: maxValue > 0
+                              ? (maxValue / 5).ceilToDouble()
+                              : 10,
+                          getTitlesWidget: (value, meta) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                value.toInt().toString(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: maxValue > 0
+                          ? (maxValue / 5).ceilToDouble()
+                          : 10,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: AppColors.border.withValues(alpha: 0.3),
+                          strokeWidth: 1,
+                          dashArray: [5, 5],
+                        );
+                      },
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: const Border(
+                        bottom: BorderSide(color: AppColors.border, width: 1.5),
+                        left: BorderSide(color: AppColors.border, width: 1.5),
+                      ),
+                    ),
+                    barGroups: [
+                      // Lámparas solicitadas
+                      BarChartGroupData(
+                        x: 0,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _totalLamparas.toDouble(),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.orange,
+                                Colors.orange.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                            width: 40,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Lámparas entregadas
+                      BarChartGroupData(
+                        x: 1,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _lamparasEntregadas.toDouble(),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.green,
+                                Colors.green.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                            width: 40,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Lámparas pendientes
+                      BarChartGroupData(
+                        x: 2,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _lamparasPendientes.toDouble(),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.red,
+                                Colors.red.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                            width: 40,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Bombillos solicitados
+                      BarChartGroupData(
+                        x: 3,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _totalBombillos.toDouble(),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.amber,
+                                Colors.amber.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                            width: 40,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Bombillos entregados
+                      BarChartGroupData(
+                        x: 4,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _bombillosEntregados.toDouble(),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.green,
+                                Colors.green.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                            width: 40,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Bombillos pendientes
+                      BarChartGroupData(
+                        x: 5,
+                        barRods: [
+                          BarChartRodData(
+                            toY: _bombillosPendientes.toDouble(),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.red,
+                                Colors.red.withValues(alpha: 0.7),
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                            width: 40,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.bar_chart,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Comparativa de Lámparas y Bombillos",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 350,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceEvenly,
-                  maxY: maxValue + (maxValue * 0.15),
-                  minY: 0,
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 100,
-                        getTitlesWidget: (value, meta) {
-                          String label;
-                          int cantidad;
-                          Color color;
-                          
-                          switch (value.toInt()) {
-                            case 0:
-                              label = 'Lámparas\nSolicitadas';
-                              cantidad = _totalLamparas;
-                              color = Colors.orange;
-                              break;
-                            case 1:
-                              label = 'Lámparas\nEntregadas';
-                              cantidad = _lamparasEntregadas;
-                              color = Colors.green;
-                              break;
-                            case 2:
-                              label = 'Lámparas\nPendientes';
-                              cantidad = _lamparasPendientes;
-                              color = Colors.red;
-                              break;
-                            case 3:
-                              label = 'Bombillos\nSolicitados';
-                              cantidad = _totalBombillos;
-                              color = Colors.amber;
-                              break;
-                            case 4:
-                              label = 'Bombillos\nEntregados';
-                              cantidad = _bombillosEntregados;
-                              color = Colors.green;
-                              break;
-                            case 5:
-                              label = 'Bombillos\nPendientes';
-                              cantidad = _bombillosPendientes;
-                              color = Colors.red;
-                              break;
-                            default:
-                              return const Text('');
-                          }
-                          
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  cantidad.toString(),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  label,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 50,
-                        interval: maxValue > 0 ? (maxValue / 5).ceilToDouble() : 10,
-                        getTitlesWidget: (value, meta) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Text(
-                              value.toInt().toString(),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: maxValue > 0 ? (maxValue / 5).ceilToDouble() : 10,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: AppColors.border.withOpacity(0.3),
-                        strokeWidth: 1,
-                        dashArray: [5, 5],
-                      );
-                    },
-                  ),
-                  borderData: FlBorderData(
-                    show: true,
-                    border: Border(
-                      bottom: BorderSide(color: AppColors.border, width: 1.5),
-                      left: BorderSide(color: AppColors.border, width: 1.5),
-                    ),
-                  ),
-                  barGroups: [
-                    // Lámparas solicitadas
-                    BarChartGroupData(
-                      x: 0,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _totalLamparas.toDouble(),
-                          gradient: LinearGradient(
-                            colors: [Colors.orange, Colors.orange.withOpacity(0.7)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          width: 40,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Lámparas entregadas
-                    BarChartGroupData(
-                      x: 1,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _lamparasEntregadas.toDouble(),
-                          gradient: LinearGradient(
-                            colors: [Colors.green, Colors.green.withOpacity(0.7)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          width: 40,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Lámparas pendientes
-                    BarChartGroupData(
-                      x: 2,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _lamparasPendientes.toDouble(),
-                          gradient: LinearGradient(
-                            colors: [Colors.red, Colors.red.withOpacity(0.7)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          width: 40,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Bombillos solicitados
-                    BarChartGroupData(
-                      x: 3,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _totalBombillos.toDouble(),
-                          gradient: LinearGradient(
-                            colors: [Colors.amber, Colors.amber.withOpacity(0.7)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          width: 40,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Bombillos entregados
-                    BarChartGroupData(
-                      x: 4,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _bombillosEntregados.toDouble(),
-                          gradient: LinearGradient(
-                            colors: [Colors.green, Colors.green.withOpacity(0.7)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          width: 40,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Bombillos pendientes
-                    BarChartGroupData(
-                      x: 5,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _bombillosPendientes.toDouble(),
-                          gradient: LinearGradient(
-                            colors: [Colors.red, Colors.red.withOpacity(0.7)],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                          width: 40,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
-    ),
     );
   }
 }

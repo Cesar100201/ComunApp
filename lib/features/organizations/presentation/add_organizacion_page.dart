@@ -21,7 +21,7 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
   TipoOrganizacion _selectedTipo = TipoOrganizacion.Politico;
   bool _tieneAbreviacion = false;
   bool _isSaving = false;
-  
+
   final List<Cargo> _cargos = [];
 
   @override
@@ -35,22 +35,26 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
   void _agregarCargo(bool esUnico) {
     final nombreCargo = _cargoController.text.trim();
     if (nombreCargo.isEmpty) return;
-    
+
     // Verificar que no exista ya
-    if (_cargos.any((c) => c.nombreCargo.toLowerCase() == nombreCargo.toLowerCase())) {
+    if (_cargos.any(
+      (c) => c.nombreCargo.toLowerCase() == nombreCargo.toLowerCase(),
+    )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Este cargo ya existe"),
+        const SnackBar(
+          content: Text("Este cargo ya existe"),
           backgroundColor: AppColors.warning,
         ),
       );
       return;
     }
-    
+
     setState(() {
-      _cargos.add(Cargo()
-        ..nombreCargo = nombreCargo
-        ..esUnico = esUnico);
+      _cargos.add(
+        Cargo()
+          ..nombreCargo = nombreCargo
+          ..esUnico = esUnico,
+      );
       _cargoController.clear();
     });
   }
@@ -65,8 +69,8 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
     final nombreCargo = _cargoController.text.trim();
     if (nombreCargo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Escriba el nombre del cargo primero"),
+        const SnackBar(
+          content: Text("Escriba el nombre del cargo primero"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -83,24 +87,24 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
             Text("¿Cuántas personas pueden ocupar el cargo \"$nombreCargo\"?"),
             const SizedBox(height: 16),
             ListTile(
-              leading: Icon(Icons.person, color: AppColors.warning),
+              leading: const Icon(Icons.person, color: AppColors.warning),
               title: const Text("Cargo Único"),
               subtitle: const Text("Solo una persona puede ocuparlo"),
               onTap: () => Navigator.pop(context, true),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: AppColors.warning),
+                side: const BorderSide(color: AppColors.warning),
               ),
             ),
             const SizedBox(height: 12),
             ListTile(
-              leading: Icon(Icons.groups, color: AppColors.info),
+              leading: const Icon(Icons.groups, color: AppColors.info),
               title: const Text("Cargo Múltiple"),
               subtitle: const Text("Varias personas pueden ocuparlo"),
               onTap: () => Navigator.pop(context, false),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: AppColors.info),
+                side: const BorderSide(color: AppColors.info),
               ),
             ),
           ],
@@ -120,7 +124,8 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
     try {
       final organizacion = Organizacion()
         ..nombreLargo = _nombreLargoController.text.trim()
-        ..abreviacion = _tieneAbreviacion && _abreviacionController.text.trim().isNotEmpty
+        ..abreviacion =
+            _tieneAbreviacion && _abreviacionController.text.trim().isNotEmpty
             ? _abreviacionController.text.trim()
             : null
         ..tipo = _selectedTipo
@@ -131,8 +136,8 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("✅ Organización registrada con éxito"),
+        const SnackBar(
+          content: Text("✅ Organización registrada con éxito"),
           backgroundColor: AppColors.success,
         ),
       );
@@ -165,13 +170,17 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
               Text(
                 "Datos de la Organización",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 24),
-              _buildInput("Nombre Largo", Icons.business, _nombreLargoController),
+              _buildInput(
+                "Nombre Largo",
+                Icons.business,
+                _nombreLargoController,
+              ),
               const SizedBox(height: 20),
-              
+
               // Checkbox para indicar si tiene abreviación
               Row(
                 children: [
@@ -190,14 +199,14 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
                     child: Text(
                       "Tiene abreviación",
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Campo de abreviación (solo visible si tiene abreviación)
               if (_tieneAbreviacion)
                 _buildInput(
@@ -219,14 +228,14 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
                 },
               ),
               const SizedBox(height: 32),
-              
+
               // Sección de cargos
               Text(
                 "Cargos",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -259,14 +268,16 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
                       avatar: Icon(
                         cargo.esUnico ? Icons.person : Icons.groups,
                         size: 18,
-                        color: cargo.esUnico ? AppColors.warning : AppColors.info,
+                        color: cargo.esUnico
+                            ? AppColors.warning
+                            : AppColors.info,
                       ),
                       label: Text(cargo.nombreCargo),
                       deleteIcon: const Icon(Icons.close, size: 18),
                       onDeleted: () => _eliminarCargo(entry.key),
-                      backgroundColor: cargo.esUnico 
-                          ? AppColors.warning.withOpacity(0.1)
-                          : AppColors.info.withOpacity(0.1),
+                      backgroundColor: cargo.esUnico
+                          ? AppColors.warning.withValues(alpha: 0.1)
+                          : AppColors.info.withValues(alpha: 0.1),
                     );
                   }).toList(),
                 ),
@@ -274,18 +285,27 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "🟡 Único: solo una persona • 🔵 Múltiple: varias personas",
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                         ),
@@ -303,7 +323,10 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text("GUARDAR ORGANIZACIÓN"),
                 ),
@@ -323,10 +346,7 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
   }) {
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
       validator: required
           ? (value) => value == null || value.isEmpty ? "Campo requerido" : null
           : null,
@@ -342,10 +362,7 @@ class _AddOrganizacionPageState extends State<AddOrganizacionPage> {
   ) {
     return DropdownButtonFormField<T>(
       initialValue: selectedValue,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
       items: items.map((T value) {
         return DropdownMenuItem<T>(
           value: value,

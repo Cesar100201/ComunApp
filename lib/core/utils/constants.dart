@@ -34,6 +34,19 @@ class AppConstants {
 
   // Valores por defecto
   static const int defaultUserIdLevel = 1;
+
+  /// Niveles de usuario (rol): 1=Invitado, 2=Generador, 3=Administrador
+  static const int nivelInvitado = 1;
+  static const int nivelGenerador = 2;
+  static const int nivelAdministrador = 3;
+
+  /// Etiqueta para mostrar en UI según nivel.
+  static String nivelUsuarioLabel(int n) {
+    if (n == nivelInvitado) return 'Invitado';
+    if (n == nivelGenerador) return 'Generador';
+    if (n == nivelAdministrador) return 'Administrador';
+    return 'Nivel $n';
+  }
   static final DateTime defaultBirthDate = DateTime(1990, 1, 1);
   static const String defaultMunicipality = 'García de Hevia';
   static const String defaultParish = 'LaFria';

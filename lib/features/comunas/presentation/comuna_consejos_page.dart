@@ -115,7 +115,7 @@ class _ComunaConsejosPageState extends State<ComunaConsejosPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.groups_outlined,
               size: 80,
               color: AppColors.textTertiary,
@@ -158,7 +158,7 @@ class _ComunaConsejosPageState extends State<ComunaConsejosPage> {
         borderRadius: BorderRadius.circular(12),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          leading: CircleAvatar(
+          leading: const CircleAvatar(
             backgroundColor: AppColors.primaryUltraLight,
             child: Icon(
               Icons.groups,

@@ -94,8 +94,8 @@ class _EditConsejoUbicacionPageState extends State<EditConsejoUbicacionPage> {
     
     if (_selectedComuna == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Por favor seleccione una Comuna"),
+        const SnackBar(
+          content: Text("Por favor seleccione una Comuna"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -118,8 +118,8 @@ class _EditConsejoUbicacionPageState extends State<EditConsejoUbicacionPage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Ubicación actualizada"),
+            const SnackBar(
+              content: Text("✅ Ubicación actualizada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -154,7 +154,7 @@ class _EditConsejoUbicacionPageState extends State<EditConsejoUbicacionPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DropdownButtonFormField<Comuna>(
-                value: _selectedComuna,
+                initialValue: _selectedComuna,
                 decoration: const InputDecoration(
                   labelText: "Comuna *",
                   prefixIcon: Icon(Icons.location_city),
@@ -216,7 +216,7 @@ class _EditConsejoUbicacionPageState extends State<EditConsejoUbicacionPage> {
                             color: AppColors.primaryUltraLight,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.map,
                             color: AppColors.primary,
                           ),
@@ -251,7 +251,7 @@ class _EditConsejoUbicacionPageState extends State<EditConsejoUbicacionPage> {
                             ],
                           ),
                         ),
-                        Icon(
+                        const Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 16,
                           color: AppColors.textTertiary,

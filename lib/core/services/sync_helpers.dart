@@ -122,6 +122,30 @@ class SyncHelper {
     return count;
   }
 
+  /// Sube un solo ítem pendiente a Firebase y lo marca como sincronizado.
+  /// Retorna true si se subió correctamente.
+  Future<bool> uploadSingle<T extends Syncable>(SyncConfig<T> config, T item) async {
+    final isar = await DbHelper().db;
+    if (config.loadRelations != null) await config.loadRelations!(item);
+    final docRef = _firestore.collection(config.firebaseCollection).doc(config.getDocumentId(item));
+    try {
+      if (item.isDeleted) {
+        final snap = await docRef.get();
+        if (snap.exists) await docRef.delete();
+      } else {
+        final data = config.toFirebaseMap(item);
+        data['ultimaActualizacion'] = firestore.FieldValue.serverTimestamp();
+        await docRef.set(data, firestore.SetOptions(merge: true));
+      }
+      item.isSynced = true;
+      await isar.writeTxn(() async => await config.saveItem(isar, item));
+      return true;
+    } catch (e) {
+      AppLogger.warning('Error subiendo ${config.firebaseCollection} ${config.getDocumentId(item)}: $e');
+      return false;
+    }
+  }
+
   /// Descarga items de Firebase con paginación.
   ///
   /// Usa páginas grandes (500) y una sola transacción Isar por página para máxima velocidad.

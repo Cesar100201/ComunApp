@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../home/presentation/home_page.dart';
 import 'register_page.dart';
+import 'cedula_validation_flow_page.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/settings_service.dart';
 import '../../../../core/utils/constants.dart';
 import '../../../../core/utils/logger.dart';
 
@@ -61,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
-      if (mounted) _navegarHome();
+      if (mounted) await _navegarPostLogin();
     } on FirebaseAuthException catch (e, stackTrace) {
       AppLogger.error('Google Sign-In / Firebase Auth', e, stackTrace);
       final mensaje = e.message ?? e.code;
@@ -93,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
         _passwordController.text,
       );
       if (mounted) {
-        _navegarHome();
+        await _navegarPostLogin();
       }
     } on AuthException catch (e) {
       if (mounted) {
@@ -108,12 +110,23 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _navegarHome() {
+  Future<void> _navegarPostLogin() async {
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
-    );
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final cedula = await SettingsService.getLinkedHabitanteCedula(uid);
+    if (!mounted) return;
+    if (cedula != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CedulaValidationFlowPage()),
+      );
+    }
   }
 
   void _mostrarError(String msg) {
@@ -197,12 +210,12 @@ class _LoginPageState extends State<LoginPage> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
-                      side: BorderSide(color: AppColors.border, width: 1),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outline, width: 1),
                     ),
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(28),
-                        color: AppColors.surface,
+                        color: Theme.of(context).colorScheme.surface,
                         boxShadow: AppColors.shadowLarge,
                       ),
                       padding: const EdgeInsets.all(32),
@@ -212,14 +225,14 @@ class _LoginPageState extends State<LoginPage> {
                           Text(
                             "Bienvenido",
                             style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                                  color: AppColors.textPrimary,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             "Ingrese sus credenciales para continuar",
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                           const SizedBox(height: 32),
@@ -248,10 +261,6 @@ class _LoginPageState extends State<LoginPage> {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _loginEmail,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1565C0),
-                                foregroundColor: Colors.white,
-                              ),
                               child: _isLoading
                                   ? const SizedBox(
                                       height: 20,
@@ -274,17 +283,17 @@ class _LoginPageState extends State<LoginPage> {
                           const SizedBox(height: 24),
                           Row(
                             children: [
-                              Expanded(child: Divider(color: AppColors.divider)),
+                              Expanded(child: Divider(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5))),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   "O continúe con",
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textTertiary,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                               ),
-                              Expanded(child: Divider(color: AppColors.divider)),
+                              Expanded(child: Divider(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5))),
                             ],
                           ),
                           const SizedBox(height: 24),
@@ -301,9 +310,6 @@ class _LoginPageState extends State<LoginPage> {
                                     const Icon(Icons.error, size: 20),
                               ),
                               label: const Text("Google"),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.border, width: 1.5),
-                              ),
                             ),
                           ),
                         ],

@@ -4,6 +4,7 @@ import '../data/repositories/extranjero_repository.dart';
 import 'add_extranjero_page.dart';
 import 'extranjero_profile_page.dart';
 import 'search_extranjero_page.dart';
+import 'bulk_upload_extranjeros_page.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
 
@@ -56,15 +57,32 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
   }
 
   Future<void> _inicializarRepositorio() async {
-    final isar = await DbHelper().db;
-    final repo = ExtranjeroRepository(isar);
-    final total = await repo.contar();
-    setState(() {
-      _repo = repo;
-      _repoInicializado = true;
-      _totalExtranjeros = total;
-    });
-    _cargarPrimeraPagina();
+    try {
+      final isar = await DbHelper().db;
+      final repo = ExtranjeroRepository(isar);
+      final total = await repo.contar();
+      if (mounted) {
+        setState(() {
+          _repo = repo;
+          _repoInicializado = true;
+          _totalExtranjeros = total;
+        });
+        _cargarPrimeraPagina();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _repoInicializado = true;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar extranjeros: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _cargarPrimeraPagina() async {
@@ -72,29 +90,57 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
       await _inicializarRepositorio();
       return;
     }
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    final datos = await _repo!.obtenerPaginado(0, _pageSize);
-    final total = await _repo!.contar();
-    if (mounted) {
-      setState(() {
-        _extranjeros = datos;
-        _hasMore = datos.length >= _pageSize;
-        _totalExtranjeros = total;
-        _isLoading = false;
-      });
+    try {
+      final datos = await _repo!.obtenerPaginado(0, _pageSize);
+      final total = await _repo!.contar();
+      if (mounted) {
+        setState(() {
+          _extranjeros = datos;
+          _hasMore = datos.length >= _pageSize;
+          _totalExtranjeros = total;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar la lista: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _cargarMas() async {
     if (!_hasMore || _isLoadingMore || _repo == null) return;
     setState(() => _isLoadingMore = true);
-    final datos = await _repo!.obtenerPaginado(_extranjeros.length, _pageSize);
-    if (mounted) {
-      setState(() {
-        _extranjeros = [..._extranjeros, ...datos];
-        _hasMore = datos.length >= _pageSize;
-        _isLoadingMore = false;
-      });
+    try {
+      final datos = await _repo!.obtenerPaginado(
+        _extranjeros.length,
+        _pageSize,
+      );
+      if (mounted) {
+        setState(() {
+          _extranjeros = [..._extranjeros, ...datos];
+          _hasMore = datos.length >= _pageSize;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar más: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -110,9 +156,9 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
             child: Text(
               "Total de Extranjeros: $_totalExtranjeros",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -126,6 +172,21 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
               );
             },
             tooltip: 'Buscar extranjero',
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const BulkUploadExtranjerosPage(),
+                ),
+              );
+              if (result == true) {
+                _cargarPrimeraPagina();
+              }
+            },
+            tooltip: 'Carga Masiva',
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -148,33 +209,37 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _extranjeros.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _extranjeros.length + ((_hasMore && _isLoadingMore) ? 1 : 0) + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return _buildTotalCard();
-                    }
-                    final extranjeroIndex = index - 1;
-                    if (extranjeroIndex >= _extranjeros.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final e = _extranjeros[extranjeroIndex];
-                    return _buildExtranjeroCard(e);
-                  },
-                ),
+          ? _buildEmptyState()
+          : ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount:
+                  _extranjeros.length +
+                  ((_hasMore && _isLoadingMore) ? 1 : 0) +
+                  1,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return _buildTotalCard();
+                }
+                final extranjeroIndex = index - 1;
+                if (extranjeroIndex >= _extranjeros.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final e = _extranjeros[extranjeroIndex];
+                return _buildExtranjeroCard(e);
+              },
+            ),
     );
   }
 
   Widget _buildTotalCard() {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      color: AppColors.primary.withOpacity(0.1),
+      color: cs.primaryContainer.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -195,16 +260,16 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
                   Text(
                     "Total de Extranjeros Registrados",
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _totalExtranjeros.toString(),
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -223,14 +288,14 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
           Icon(
             Icons.folder_off_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay registros locales",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -238,7 +303,10 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
   }
 
   Widget _buildExtranjeroCard(Extranjero e) {
-    final ubicacion = '${e.departamento}, ${e.municipio}';
+    final ubicacion = '${e.departamento}, ${e.municipio}'.trim();
+    final nombre = e.nombreCompleto.isNotEmpty
+        ? e.nombreCompleto
+        : 'Sin nombre';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -250,30 +318,33 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
             ),
           );
         },
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         leading: CircleAvatar(
           backgroundColor: AppColors.primaryUltraLight,
           child: Text(
-            e.nombreCompleto.isNotEmpty ? e.nombreCompleto.substring(0, 1) : '?',
-            style: TextStyle(
+            nombre.isNotEmpty ? nombre.substring(0, 1).toUpperCase() : '?',
+            style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
         title: Text(
-          e.nombreCompleto,
+          nombre,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
-              ),
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
             "C.C: ${e.cedulaColombiana} • $ubicacion",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         trailing: Column(
@@ -288,9 +359,9 @@ class _ExtranjerosListPageState extends State<ExtranjerosListPage> {
             Text(
               e.isSynced ? "En Línea" : "Pendiente",
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: e.isSynced ? AppColors.success : AppColors.warning,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: e.isSynced ? AppColors.success : AppColors.warning,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

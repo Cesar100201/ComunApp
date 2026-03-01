@@ -10,7 +10,8 @@ class ConsejosComunalesListPage extends StatefulWidget {
   const ConsejosComunalesListPage({super.key});
 
   @override
-  State<ConsejosComunalesListPage> createState() => _ConsejosComunalesListPageState();
+  State<ConsejosComunalesListPage> createState() =>
+      _ConsejosComunalesListPageState();
 }
 
 class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
@@ -40,14 +41,14 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
       await _inicializarRepositorio();
       return;
     }
-    
+
     final datos = await _repo!.getAllConsejos();
-    
+
     // Cargar relaciones (comuna) para cada consejo
     for (var consejo in datos) {
       await consejo.comuna.load();
     }
-    
+
     if (!mounted) return;
     setState(() {
       _consejos = datos;
@@ -58,9 +59,7 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Consejos Comunales"),
-      ),
+      appBar: AppBar(title: const Text("Consejos Comunales")),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(
@@ -75,15 +74,15 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _consejos.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _consejos.length,
-                  itemBuilder: (context, index) {
-                    final consejo = _consejos[index];
-                    return _buildConsejoCard(consejo);
-                  },
-                ),
+          ? _buildEmptyState()
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _consejos.length,
+              itemBuilder: (context, index) {
+                final consejo = _consejos[index];
+                return _buildConsejoCard(consejo);
+              },
+            ),
     );
   }
 
@@ -95,14 +94,14 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
           Icon(
             Icons.groups_outlined,
             size: 80,
-            color: AppColors.textTertiary,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             "No hay consejos comunales registrados",
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -125,20 +124,22 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
           }
         },
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          leading: CircleAvatar(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
+          leading: const CircleAvatar(
             backgroundColor: AppColors.primaryUltraLight,
-            child: Icon(
-              Icons.groups,
-              color: AppColors.primary,
-            ),
+            child: Icon(Icons.groups, color: AppColors.primary),
           ),
           title: Text(
             consejo.nombreConsejo,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -147,22 +148,29 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
               children: [
                 Text(
                   "Código SITUR: ${consejo.codigoSitur}",
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 if (consejo.comuna.value != null)
                   Text(
                     "Comuna: ${consejo.comuna.value!.nombreComuna}",
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 const SizedBox(height: 4),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primaryUltraLight,
                         borderRadius: BorderRadius.circular(12),
@@ -170,7 +178,7 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.business_center,
                             size: 12,
                             color: AppColors.primary,
@@ -178,7 +186,7 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
                           const SizedBox(width: 4),
                           Text(
                             "${consejo.cargos.length} cargo${consejo.cargos.length != 1 ? 's' : ''}",
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.primary,
                               fontWeight: FontWeight.w600,
@@ -187,17 +195,19 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(0.1),
+                        color: AppColors.info.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.home_work,
                             size: 12,
                             color: AppColors.info,
@@ -205,7 +215,7 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
                           const SizedBox(width: 4),
                           Text(
                             "${consejo.comunidades.length} comunidad${consejo.comunidades.length != 1 ? 'es' : ''}",
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.info,
                               fontWeight: FontWeight.w600,
@@ -231,9 +241,11 @@ class _ConsejosComunalesListPageState extends State<ConsejosComunalesListPage> {
               Text(
                 consejo.isSynced ? "En Línea" : "Pendiente",
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: consejo.isSynced ? AppColors.success : AppColors.warning,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: consejo.isSynced
+                      ? AppColors.success
+                      : AppColors.warning,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),

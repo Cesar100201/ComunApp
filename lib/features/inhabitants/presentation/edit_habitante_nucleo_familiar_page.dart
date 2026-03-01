@@ -7,16 +7,15 @@ import '../data/repositories/habitante_repository.dart';
 class EditHabitanteNucleoFamiliarPage extends StatefulWidget {
   final Habitante habitante;
 
-  const EditHabitanteNucleoFamiliarPage({
-    super.key,
-    required this.habitante,
-  });
+  const EditHabitanteNucleoFamiliarPage({super.key, required this.habitante});
 
   @override
-  State<EditHabitanteNucleoFamiliarPage> createState() => _EditHabitanteNucleoFamiliarPageState();
+  State<EditHabitanteNucleoFamiliarPage> createState() =>
+      _EditHabitanteNucleoFamiliarPageState();
 }
 
-class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFamiliarPage> {
+class _EditHabitanteNucleoFamiliarPageState
+    extends State<EditHabitanteNucleoFamiliarPage> {
   final _formKey = GlobalKey<FormState>();
   late final HabitanteRepository _repo;
 
@@ -32,7 +31,7 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
     super.initState();
     _initializeRepository();
     _cedulaJefeController = TextEditingController();
-    
+
     if (widget.habitante.jefeDeFamilia.value != null) {
       _esJefeDeFamilia = false;
       _jefeEncontrado = widget.habitante.jefeDeFamilia.value;
@@ -94,7 +93,8 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
         if (local.jefeDeFamilia.value != null) {
           setState(() {
             _jefeEncontrado = null;
-            _errorBusquedaJefe = "Esta persona es carga familiar, no puede ser jefe";
+            _errorBusquedaJefe =
+                "Esta persona es carga familiar, no puede ser jefe";
             _isBuscandoJefe = false;
           });
           return;
@@ -126,8 +126,8 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
 
     if (!_esJefeDeFamilia && _jefeEncontrado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Debe buscar y seleccionar un jefe de familia válido"),
+        const SnackBar(
+          content: Text("Debe buscar y seleccionar un jefe de familia válido"),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -145,7 +145,9 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
           habitante.jefeDeFamilia.value = null;
         } else {
           if (_jefeEncontrado != null) {
-            final jefeCompleto = await isar.habitantes.getByCedula(_jefeEncontrado!.cedula);
+            final jefeCompleto = await isar.habitantes.getByCedula(
+              _jefeEncontrado!.cedula,
+            );
             if (jefeCompleto != null) {
               habitante.jefeDeFamilia.value = jefeCompleto;
             }
@@ -156,8 +158,8 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Núcleo familiar actualizado"),
+            const SnackBar(
+              content: Text("✅ Núcleo familiar actualizado"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -181,9 +183,7 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Editar Núcleo Familiar"),
-      ),
+      appBar: AppBar(title: const Text("Editar Núcleo Familiar")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -194,7 +194,9 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
               // Switch de jefe de familia
               SwitchListTile(
                 title: const Text("¿Es jefe de familia?"),
-                subtitle: const Text("Active si esta persona no tiene jefe de familia asignado"),
+                subtitle: const Text(
+                  "Active si esta persona no tiene jefe de familia asignado",
+                ),
                 value: _esJefeDeFamilia,
                 onChanged: (value) {
                   setState(() {
@@ -214,12 +216,12 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
                 Text(
                   "Buscar Jefe de Familia",
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 Row(
                   children: [
                     Expanded(
@@ -259,19 +261,22 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.success),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle, color: AppColors.success),
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppColors.success,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 "Jefe encontrado:",
                                 style: TextStyle(
                                   color: AppColors.success,
@@ -281,13 +286,17 @@ class _EditHabitanteNucleoFamiliarPageState extends State<EditHabitanteNucleoFam
                               const SizedBox(height: 4),
                               Text(
                                 _jefeEncontrado!.nombreCompleto,
-                                style: const TextStyle(fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                               Text(
                                 "C.I: ${_jefeEncontrado!.cedula}",
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.textSecondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],

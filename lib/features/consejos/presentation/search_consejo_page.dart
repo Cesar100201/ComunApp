@@ -122,7 +122,7 @@ class _SearchConsejoPageState extends State<SearchConsejoPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.search_off_rounded,
             size: 80,
             color: AppColors.textTertiary,
@@ -176,7 +176,7 @@ class _SearchConsejoPageState extends State<SearchConsejoPage> {
                     ),
               ),
             ),
-            trailing: Icon(
+            trailing: const Icon(
               Icons.arrow_forward_ios_rounded,
               size: 16,
               color: AppColors.textTertiary,

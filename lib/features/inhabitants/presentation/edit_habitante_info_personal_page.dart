@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../../models/models.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../database/db_helper.dart';
@@ -72,8 +71,8 @@ class _EditHabitanteInfoPersonalPageState extends State<EditHabitanteInfoPersona
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text("✅ Información personal actualizada"),
+            const SnackBar(
+              content: Text("✅ Información personal actualizada"),
               backgroundColor: AppColors.success,
             ),
           );
@@ -159,7 +158,7 @@ class _EditHabitanteInfoPersonalPageState extends State<EditHabitanteInfoPersona
 
               // Género
               DropdownButtonFormField<Genero>(
-                value: _selectedGenero,
+                initialValue: _selectedGenero,
                 decoration: const InputDecoration(
                   labelText: "Género *",
                   prefixIcon: Icon(Icons.wc),
